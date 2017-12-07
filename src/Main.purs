@@ -19,13 +19,14 @@ import ECS
 
 u = RProxy :: RProxy (a::Int, b::String, c::Number)
 
-v :: ECS (a::IntMap Int, b::IntMap String, c::IntMap Number)
+v :: ECS (a::IntMap Int, b::IntMap String, c::IntMap Number) IntMap
 v=allocateStorage u (Proxy2 :: Proxy2 IntMap)
 
-w = case v of x -> x
 
+t = set v.storage.b 4 "ffuu"
 
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
   log "Hello sailor!"
-  logShow w.storage.b
+  logShow v.storage.b
+  logShow t
