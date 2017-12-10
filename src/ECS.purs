@@ -1,11 +1,13 @@
 module ECS where
 
 import Data.Maybe
-import Data.Record (insert, get) as R
+
+import Control.Monad.Rec.Class (tailRec)
+import Data.IntMap as IM
+import Data.Record (insert, get, set) as R
 import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), SProxy(SProxy), RProxy)
 import Type.Proxy (Proxy2(Proxy2))
 import Type.Row (Cons, Nil, kind RowList)
-import Data.IntMap as IM
 
 class Storage (m :: Type -> Type) a where
   allocate :: m a
@@ -33,7 +35,16 @@ read ecs spr ind = get v ind
   where
     v = (R.get spr ecs.storage) :: m a
 
-
+write :: forall rowst name a m tail
+  . Storage m a
+  => IsSymbol name
+  => RowCons name (m a) tail rowst
+  => ECS rowst m -> SProxy name -> Int -> a -> ECS rowst m
+write ecs spr ind val = ecs { storage = stor' }
+  where
+    intmap = (R.get spr ecs.storage) :: m a
+    intmap' = set intmap ind val
+    stor' = R.set spr intmap' ecs.storage
 
 
 class AllocateStorage (xs :: RowList) (row :: # Type) a (row' :: # Type) (m :: Type -> Type)
