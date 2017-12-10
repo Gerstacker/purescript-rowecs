@@ -23,16 +23,16 @@ instance storageIntMap :: Storage IM.IntMap a where
 type ECS rowst (m :: Type -> Type) = (Record (storage :: (Record rowst), nextID :: Int))
 --unECS (ECS r) = r
 
-{-
-read :: forall rowst name a m
+
+read :: forall rowst name a m tail
   . Storage m a
   => IsSymbol name
-  => AllocateStorage rc row a' rowst m
+  => RowCons name (m a) tail rowst
   => ECS rowst m -> SProxy name -> Int -> Maybe a
 read ecs spr ind = get v ind
   where
-    v = (R.get spr ecs) :: m a
--}
+    v = (R.get spr ecs.storage) :: m a
+
 
 
 
