@@ -19,7 +19,6 @@ import ECS
 
 u = RProxy :: RProxy (a::Int, b::String, c::Number)
 
-v :: ECS (a::IntMap Int, b::IntMap String, c::IntMap Number) IntMap
 v=allocateStorage u (Proxy2 :: Proxy2 IntMap)
 
 

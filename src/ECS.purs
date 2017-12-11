@@ -69,7 +69,7 @@ instance allocateStorageCons ::
       stor = R.insert nameP val rest.storage
       nameP = SProxy :: SProxy name
       val = allocate
-      rest = allocateStorageImpl (RLProxy :: RLProxy tail) (Proxy2 :: Proxy2 m)
+      rest = allocateStorageImpl (RLProxy :: RLProxy tail) (Proxy2 :: Proxy2 m) :: ECS tailRow' m
 
 
 allocateStorage :: forall m row xs a row'
