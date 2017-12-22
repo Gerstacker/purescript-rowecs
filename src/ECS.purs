@@ -46,12 +46,12 @@ write ecs spr ind val = ecs { storage = stor' }
 
 
 
-class AllocateStorage (c :: Type -> Type) (rowDg :: # Type) (listD :: RowList)  (rowS :: # Type) a
-    | listD c -> rowDg rowS a, rowS -> c rowDg
+class AllocateStorage (c :: Type -> Type) (listD :: RowList)  (rowS :: # Type) a
+    | listD c -> rowS a, rowS -> c
   where
     allocateStorageImpl :: RLProxy listD -> Proxy2 c -> ECS c rowS
 
-instance allocateStorageNil :: AllocateStorage m rowDg Nil () a where
+instance allocateStorageNil :: AllocateStorage m Nil () a where
   allocateStorageImpl _ _ = { storage : {}, nextID : 0}
 
 instance allocateStorageCons ::
@@ -59,8 +59,8 @@ instance allocateStorageCons ::
   , Storage c a
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowS'
-  , AllocateStorage c rowD listD' rowS' b
-  ) => AllocateStorage c rowDg (Cons name a listD') rowS a where
+  , AllocateStorage c listD' rowS' b
+  ) => AllocateStorage c (Cons name a listD') rowS a where
   allocateStorageImpl _ _ =
     (rest { storage = stor})
     where
@@ -71,7 +71,7 @@ instance allocateStorageCons ::
 
 allocateStorage :: forall c rowD listD a rowS
   . RowToList rowD listD
-  => AllocateStorage c rowD listD rowS a
+  => AllocateStorage c listD rowS a
   => Storage c a
   => RProxy rowD
   -> Proxy2 c
