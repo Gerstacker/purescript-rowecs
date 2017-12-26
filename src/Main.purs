@@ -22,14 +22,18 @@ u = RProxy :: RProxy (a::Int, b::String, c::Number)
 v=allocateStorage u (Proxy2 :: Proxy2 IntMap)
 
 
-t = set v.storage.b 4 "ffuu"
+t = set v.b 4 "ffuu"
 
 w = write v (SProxy::SProxy "c") 13 7.5
+q = write w (SProxy::SProxy "b") 12 "asdf"
 
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
   log "Hello sailor!"
-  logShow v.storage.b
+  logShow v.b
   logShow t
-  logShow w.storage.c
+  logShow w.c
   logShow $ read w (SProxy::SProxy "c") 13
+  logShow $ read q (SProxy::SProxy "c") 13
+  logShow $ read q (SProxy::SProxy "c") 10
+  logShow $ read q (SProxy::SProxy "b") 12

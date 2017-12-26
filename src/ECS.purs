@@ -21,48 +21,50 @@ instance storageIntMap :: Storage IM.IntMap a where
   set im ind val = IM.insert ind val im
 
 
-type ECS (c :: Type -> Type) rowS = (Record (storage :: (Record rowS), nextID :: Int))
+
+type CompStorage (c :: Type -> Type) rowS = Record rowS
+
 
 
 read :: forall rowS name a c rowS'
   . Storage c a
   => IsSymbol name
   => RowCons name (c a) rowS' rowS
-  => ECS c rowS -> SProxy name -> Int -> Maybe a
-read ecs spr ind = get v ind
+  => CompStorage c rowS -> SProxy name -> Int -> Maybe a
+read cstor spr ind = get v ind
   where
-    v = (R.get spr ecs.storage) :: c a
+    v = (R.get spr cstor) :: c a
 
 
 unsafeRead :: forall rowS name a c rowS'
   . Storage c a
   => IsSymbol name
   => RowCons name (c a) rowS' rowS
-  => ECS c rowS -> SProxy name -> Int -> a
-unsafeRead ecs spr ind = unsafePartial $ fromJust $ get v ind
+  => CompStorage c rowS -> SProxy name -> Int -> a
+unsafeRead cstor spr ind = unsafePartial $ fromJust $ get v ind
   where
-    v = (R.get spr ecs.storage) :: c a
+    v = (R.get spr cstor) :: c a
 
 
 write :: forall rowS name a c rowS'
   . Storage c a
   => IsSymbol name
   => RowCons name (c a) rowS' rowS
-  => ECS c rowS -> SProxy name -> Int -> a -> ECS c rowS
-write ecs spr ind val = ecs { storage = stor' }
+  => CompStorage c rowS -> SProxy name -> Int -> a -> CompStorage c rowS
+write cstor spr ind val = stor'
   where
-    intmap = (R.get spr ecs.storage) :: c a
+    intmap = (R.get spr cstor) :: c a
     intmap' = set intmap ind val
-    stor' = R.set spr intmap' ecs.storage
+    stor' = R.set spr intmap' cstor
 
 
 class AllocateStorage (c :: Type -> Type) (listD :: RowList)  (rowS :: # Type) a
     | listD c -> rowS a, rowS -> c
   where
-    allocateStorageImpl :: RLProxy listD -> Proxy2 c -> ECS c rowS
+    allocateStorageImpl :: RLProxy listD -> Proxy2 c -> CompStorage c rowS
 
 instance allocateStorageNil :: AllocateStorage m Nil () a where
-  allocateStorageImpl _ _ = { storage : {}, nextID : 0}
+  allocateStorageImpl _ _ = {}
 
 instance allocateStorageCons ::
   ( IsSymbol name
@@ -71,13 +73,10 @@ instance allocateStorageCons ::
   , RowLacks name rowS'
   , AllocateStorage c listD' rowS' b
   ) => AllocateStorage c (Cons name a listD') rowS a where
-  allocateStorageImpl _ _ =
-    (rest { storage = stor})
+  allocateStorageImpl _ _ = R.insert nameP allocate rest
     where
-      stor = R.insert nameP val rest.storage
       nameP = SProxy :: SProxy name
-      val = allocate
-      rest = allocateStorageImpl (RLProxy :: RLProxy listD') (Proxy2 :: Proxy2 c) :: ECS c rowS'
+      rest = allocateStorageImpl (RLProxy :: RLProxy listD') (Proxy2 :: Proxy2 c) :: CompStorage c rowS'
 
 allocateStorage :: forall c rowD listD a rowS
   . RowToList rowD listD
@@ -85,14 +84,14 @@ allocateStorage :: forall c rowD listD a rowS
   => Storage c a
   => RProxy rowD
   -> Proxy2 c
-  -> ECS c rowS
+  -> CompStorage c rowS
 allocateStorage _ = allocateStorageImpl (RLProxy :: RLProxy listD)
 
 
 class ReadStorage (c :: Type -> Type) (rowS :: # Type) (listD :: RowList) (rowD :: # Type) a
-    | rowS -> c a, listD -> rowD
+    | rowS -> c, listD -> rowD, rowD -> a
   where
-    readStorageImpl :: RLProxy listD -> ECS c rowS -> Int -> Record rowD
+    readStorageImpl :: RLProxy listD -> CompStorage c rowS -> Int -> Record rowD
 
 instance readStorageNil :: ReadStorage c rowS Nil () a where
   readStorageImpl _ _ _ = {}
@@ -105,8 +104,8 @@ instance readStorageCons ::
   , RowLacks name rowD'
   , ReadStorage c rowS listD' rowD' a
   ) => ReadStorage c rowS (Cons name a listD') rowD a where
-  readStorageImpl _ ecs ind = R.insert nameP val rest
+  readStorageImpl _ cstor ind = R.insert nameP val rest
     where
       nameP = SProxy :: SProxy name
-      val = unsafeRead ecs nameP ind
-      rest = (readStorageImpl (RLProxy :: RLProxy listD') ecs ind) :: Record rowD'
+      val = unsafeRead cstor nameP ind
+      rest = (readStorageImpl (RLProxy :: RLProxy listD') cstor ind) :: Record rowD'
