@@ -28,6 +28,10 @@ w = write v (SProxy::SProxy "c") 13 7.5
 q = write w (SProxy::SProxy "b") 12 "asdf"
 z = write q (SProxy::SProxy "a") 13 44
 
+rw = RProxy :: RProxy (c::Number, a::Int)
+
+rs = readStorage rw z 13
+
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
   log "Hello sailor!"
@@ -38,4 +42,5 @@ main = do
   logShow $ read q (SProxy::SProxy "c") 13
   logShow $ read q (SProxy::SProxy "c") 10
   logShow $ read q (SProxy::SProxy "b") 12
-  
+  logShow $ rs.a
+  logShow $ rs.c

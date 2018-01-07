@@ -131,3 +131,13 @@ instance readStorageCons ::
       nameP = SProxy :: SProxy name
       val = unsafeRead cstor nameP ind :: a
       rest = (readStorageImpl (RLProxy :: RLProxy listD') cstor ind) :: Record rowD'
+
+readStorage :: forall c rowD rowS listD a
+  . RowToList rowD listD
+  => ReadStorage c rowS listD rowD a
+  => Storage c a
+  => RProxy rowD
+  -> CompStorage c rowS
+  -> Int
+  -> Record rowD
+readStorage _ cstor ind = readStorageImpl (RLProxy :: RLProxy listD) cstor ind
