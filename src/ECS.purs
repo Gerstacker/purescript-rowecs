@@ -117,9 +117,6 @@ instance readStorageNil :: ReadStorage c rowS Nil () a where
 instance readStorageCons ::
   ( IsSymbol name
   , Storage c a
-  , Storage c b
-  , RowToList rowD listD
-  , RowToList rowD' listD'
   , RowCons name a rowD' rowD
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowD'
@@ -135,7 +132,6 @@ instance readStorageCons ::
 readStorage :: forall c rowD rowS listD a
   . RowToList rowD listD
   => ReadStorage c rowS listD rowD a
-  => Storage c a
   => RProxy rowD
   -> CompStorage c rowS
   -> Int
