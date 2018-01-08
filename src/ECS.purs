@@ -127,7 +127,7 @@ instance readStorageCons ::
     where
       nameP = SProxy :: SProxy name
       val = unsafeRead cstor nameP ind :: a
-      rest = (readStorageImpl (RLProxy :: RLProxy listD') cstor ind) :: Record rowD'
+      rest = readStorageImpl (RLProxy :: RLProxy listD') cstor ind
 
 readStorage :: forall c rowD rowS listD a
   . RowToList rowD listD
@@ -137,3 +137,37 @@ readStorage :: forall c rowD rowS listD a
   -> Int
   -> Record rowD
 readStorage _ cstor ind = readStorageImpl (RLProxy :: RLProxy listD) cstor ind
+
+{-
+class WriteStorage (c :: Type -> Type) (rowS :: # Type) (listD :: RowList) (rowD :: # Type) a
+    | rowS -> c, listD -> rowD, rowD -> a
+  where
+    writeStorageImpl :: RLProxy listD -> CompStorage c rowS -> Int -> Record rowD -> CompStorage c rowS
+
+instance writeStorageNil :: WriteStorage c rowS Nil () a where
+   writeStorageImpl _ _ _ = {}
+
+instance writeStorageCons ::
+  ( IsSymbol name
+  , Storage c a
+  , RowCons name a rowD' rowD
+  , RowCons name (c a) rowS' rowS
+  , RowLacks name rowD'
+  , HasComponent (CompStorage c rowS) c rowS name a
+  , WriteStorage c rowS listD' rowD' b
+  ) => WriteStorage c rowS (Cons name a listD') rowD a where
+  writeStorageImpl _ cstor ind vals = R.insert nameP val rest
+    where
+      nameP = SProxy :: SProxy name
+      val = unsafeRead cstor nameP ind :: a
+      rest = (writeStorageImpl (RLProxy :: RLProxy listD') cstor ind vals') :: Record rowD'
+
+writeStorage :: forall c rowD rowS listD a
+  . RowToList rowD listD
+  => WriteStorage c rowS listD rowD a
+  => RProxy rowD
+  -> CompStorage c rowS
+  -> Int
+  -> Record rowD
+writeStorage _ cstor ind = writeStorageImpl (RLProxy :: RLProxy listD) cstor ind
+-}
