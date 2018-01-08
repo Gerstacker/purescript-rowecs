@@ -132,11 +132,10 @@ instance readStorageCons ::
 readStorage :: forall c rowD rowS listD a
   . RowToList rowD listD
   => ReadStorage c rowS listD rowD a
-  => RProxy rowD
-  -> CompStorage c rowS
+  => CompStorage c rowS
   -> Int
   -> Record rowD
-readStorage _ cstor ind = readStorageImpl (RLProxy :: RLProxy listD) cstor ind
+readStorage cstor ind = readStorageImpl (RLProxy :: RLProxy listD) cstor ind
 
 {-
 class WriteStorage (c :: Type -> Type) (rowS :: # Type) (listD :: RowList) (rowD :: # Type) a

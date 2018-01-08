@@ -30,7 +30,7 @@ z = write q (SProxy::SProxy "a") 13 44
 
 rw = RProxy :: RProxy (c::Number, a::Int)
 
-rs = readStorage rw z 13
+rs = readStorage z 13 :: Record (c::Number, a::Int)
 
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
