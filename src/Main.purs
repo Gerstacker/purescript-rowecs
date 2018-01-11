@@ -11,15 +11,9 @@ import Type.Prelude(RProxy(RProxy), SProxy(SProxy))
 import ECS
 
 
--- g :: forall a . Proxy a -> IntMap a
--- g _ = empty
-
--- makeWorld :: forall row row' xs a . RowToList row xs => MapRecord xs row (Proxy a) (IntMap a) row' => { | row } -> { | row' }
--- makeWorld a = mapRecord g a
-
 u = RProxy :: RProxy (a::Int, b::String, c::Number)
 
-v=allocateStorage u (Proxy2 :: Proxy2 IntMap)
+v=allocateStorageUniform u (Proxy2 :: Proxy2 IntMap)
 
 
 --t = CompStorage $ set (unCompStorage v).b 4 "ffuu"
@@ -34,9 +28,7 @@ rs = readStorage z 13 :: Record (c::Number, a::Int)
 
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
-  log "Hello sailor!"
   logShow (unCS v).b
---  logShow t
   logShow (unCS w).c
   logShow $ read w (SProxy::SProxy "c") 13
   logShow $ read q (SProxy::SProxy "c") 13
