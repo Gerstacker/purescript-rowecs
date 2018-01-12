@@ -76,6 +76,35 @@ write (CompStorage csrec) spr ind val = CompStorage stor'
     intmap' = set intmap ind val
     stor' = R.set spr intmap' csrec
 
+class AllocateStorage (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
+    | listS -> c a, listS -> rowS
+  where
+    allocateStorageImpl :: RLProxy listS -> CompStorage rowS
+
+instance allocateStorageNil :: AllocateStorage Nil () c a where
+  allocateStorageImpl _ = CompStorage {}
+
+instance allocateStorageCons ::
+  ( IsSymbol name
+  , Storage c a
+  , RowCons name (c a) rowS' rowS
+  , RowLacks name rowS'
+  , HasComponent (CompStorage rowS) rowS name a
+  , AllocateStorage listS' rowS' d b
+  ) => AllocateStorage (Cons name (c a) listS') rowS c a
+    where
+      allocateStorageImpl _ = CompStorage $ R.insert nameP allocate $ unCS rest
+        where
+          nameP = SProxy :: SProxy name
+          rest = allocateStorageImpl (RLProxy :: RLProxy listS') :: CompStorage rowS'
+
+allocateStorage :: forall listS rowS c a
+  . RowToList rowS listS
+  => AllocateStorage listS rowS c a
+  => Storage c a
+  => RProxy rowS
+  -> CompStorage rowS
+allocateStorage _ = allocateStorageImpl (RLProxy :: RLProxy listS)
 
 class AllocateStorageUniform (c :: Type -> Type) (listD :: RowList)  (rowS :: # Type) a
     | listD c -> rowS a, rowS -> c
@@ -123,12 +152,13 @@ instance readStorageCons ::
   , RowLacks name rowD'
   , HasComponent (CompStorage rowS) rowS name a
   , ReadStorage rowS listD' rowD' d b
-  ) => ReadStorage rowS (Cons name a listD') rowD c a where
-  readStorageImpl _ cstor ind = R.insert nameP val rest
+  ) => ReadStorage rowS (Cons name a listD') rowD c a
     where
-      nameP = SProxy :: SProxy name
-      val = unsafeRead cstor nameP ind :: a
-      rest = readStorageImpl (RLProxy :: RLProxy listD') cstor ind
+      readStorageImpl _ cstor ind = R.insert nameP val rest
+        where
+          nameP = SProxy :: SProxy name
+          val = unsafeRead cstor nameP ind :: a
+          rest = readStorageImpl (RLProxy :: RLProxy listD') cstor ind
 
 readStorage :: forall c rowD rowS listD a
   . RowToList rowD listD
