@@ -23,23 +23,10 @@ instance storageIntMap :: Storage IM.IntMap a where
   del im ind = IM.delete ind im
 
 
-
 newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
 
 unCS :: forall rowS . CompStorage rowS -> Record rowS
 unCS (CompStorage rec) = rec
-
-
-class HasComponent cs (rowS :: # Type) (name :: Symbol) a
-    | rowS name -> a
-
-instance csHC ::
-  ( Storage c a
-  , IsSymbol name
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowS'
-  ) => HasComponent (CompStorage rowS) rowS name a
-
 
 
 
@@ -55,8 +42,7 @@ read (CompStorage csrec) spr ind = get v ind
 
 
 unsafeRead :: forall rowS name a c rowS'
-  . HasComponent (CompStorage rowS) rowS name a
-  => IsSymbol name
+  . IsSymbol name
   => RowCons name (c a) rowS' rowS
   => Storage c a
   => CompStorage rowS -> SProxy name -> Int -> a
@@ -89,7 +75,6 @@ instance allocateStorageCons ::
   , Storage c a
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowS'
-  , HasComponent (CompStorage rowS) rowS name a
   , AllocateStorage listS' rowS' d b
   ) => AllocateStorage (Cons name (c a) listS') rowS c a
     where
@@ -150,7 +135,7 @@ instance readStorageCons ::
   , RowCons name a rowD' rowD
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowD'
-  , HasComponent (CompStorage rowS) rowS name a
+--  , HasComponent rowS name a
   , ReadStorage rowS listD' rowD' d b
   ) => ReadStorage rowS (Cons name a listD') rowD c a
     where
