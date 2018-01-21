@@ -3,6 +3,7 @@ module ECS where
 import Data.Maybe
 
 import Data.IntMap as IM
+import Data.Array as A
 import Data.Record (insert, get, set) as R
 import Partial.Unsafe (unsafePartial)
 import Prelude (($))
@@ -15,12 +16,17 @@ class Storage (c :: Type -> Type) a where
   get :: c a -> Int -> Maybe a
   set :: c a -> Int -> a -> c a
   del :: c a -> Int -> c a
+  indices :: c a -> Array Int
+  member :: c a -> Int -> Boolean
+
 
 instance storageIntMap :: Storage IM.IntMap a where
   allocate = IM.empty
   get im ind = IM.lookup ind im
   set im ind val = IM.insert ind val im
   del im ind = IM.delete ind im
+  indices im = IM.indices im
+  member im ind = IM.member ind im
 
 
 newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
@@ -121,7 +127,7 @@ allocateStorageUniform :: forall c rowD listD a rowS
 allocateStorageUniform _ = allocateStorageUniformImpl (RLProxy :: RLProxy listD)
 
 
-class ReadStorage(rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type)  a
+class ReadStorage (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type)  a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
     readStorageImpl :: RLProxy listD -> CompStorage rowS -> Int -> Record rowD
@@ -135,7 +141,6 @@ instance readStorageCons ::
   , RowCons name a rowD' rowD
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowD'
---  , HasComponent rowS name a
   , ReadStorage rowS listD' rowD' d b
   ) => ReadStorage rowS (Cons name a listD') rowD c a
     where
@@ -152,3 +157,40 @@ readStorage :: forall c rowD rowS listD a
   -> Int
   -> Record rowD
 readStorage cstor ind = readStorageImpl (RLProxy :: RLProxy listD) cstor ind
+
+
+class IntersectIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
+    | listD -> rowD, rowD -> a, listD rowS -> c
+  where
+    intersectIndicesImpl :: RLProxy listD -> CompStorage rowS -> Array Int
+
+instance intersectIndicesBase ::
+  ( Storage c a
+  , IsSymbol name
+  , RowCons name (c a) rowS' rowS
+  ) => IntersectIndices rowS (Cons name a Nil) rowD c a where
+  intersectIndicesImpl _ (CompStorage im) = indices (R.get (SProxy :: SProxy name) im)
+
+instance intersectIndicesRec ::
+  ( Storage c a
+  , IsSymbol name
+  , RowCons name a rowD' rowD
+  , RowCons name (c a) rowS' rowS
+  , RowLacks name rowD'
+  , IntersectIndices rowS listD' rowD' d b
+  ) => IntersectIndices rowS (Cons name a listD') rowD c a
+    where
+      intersectIndicesImpl _ cs = A.filter f rest
+        where
+          f x = member (R.get nameP (unCS cs)) x
+          nameP = SProxy :: SProxy name
+          rest = intersectIndicesImpl (RLProxy :: RLProxy listD') cs
+
+
+intersectIndices :: forall c rowD rowS listD a
+  . RowToList rowD listD
+  => IntersectIndices rowS listD rowD c a
+  => CompStorage rowS
+  -> RProxy rowD
+  -> Array Int
+intersectIndices cstor _ = intersectIndicesImpl (RLProxy :: RLProxy listD) cstor

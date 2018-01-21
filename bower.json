@@ -11,7 +11,8 @@
     "purescript-console": "^3.0.0",
     "purescript-record-extra": "^0.1.0",
     "purescript-intmaps": "https://github.com/Gerstacker/purescript-intmaps.git#master",
-    "purescript-proxy": "^2.1.0"
+    "purescript-proxy": "^2.1.0",
+    "purescript-arrays": "^4.2.2"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0"

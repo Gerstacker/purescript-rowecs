@@ -3,11 +3,12 @@ module Main where
 import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log, logShow)
-import Data.IntMap (IntMap, empty)
+import Data.IntMap (IntMap, empty, fromAssocArray)
 --import Data.Record.Extra (mapRecord, class MapRecord)
 --import Type.Prelude (class RowToList)
 import Type.Proxy (Proxy2(Proxy2))
 import Type.Prelude(RProxy(RProxy), SProxy(SProxy))
+import Data.Tuple
 import ECS
 
 
@@ -29,6 +30,13 @@ rs = readStorage uni3 13 :: Record (c::Number, a::Int)
 het0 = allocateStorage (RProxy :: RProxy (a:: IntMap Int, b::IntMap String, c:: IntMap Number))
 het1 = write het0 (SProxy::SProxy "c") 55 2.3
 
+arrA = [ (Tuple 1 17), (Tuple 2 137), (Tuple 5 11)]
+arrB = [ (Tuple 1 "Enoch"), (Tuple 5 "Cassandra")]
+arrC = [ (Tuple 2 44.1), (Tuple 5 16.3)]
+
+cs = CompStorage { a: fromAssocArray arrA, b: fromAssocArray arrB, c: fromAssocArray arrC}
+rpa = RProxy :: RProxy (c :: Number, b :: String)
+
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
   logShow (unCS uni0).b
@@ -36,7 +44,4 @@ main = do
   logShow $ read uni1 (SProxy::SProxy "c") 13
   logShow $ read uni2 (SProxy::SProxy "c") 13
   logShow $ read uni2 (SProxy::SProxy "c") 10
-  logShow $ read uni2 (SProxy::SProxy "b") 12
-  logShow $ rs.a
-  logShow $ rs.c
-  logShow $ ((readStorage het1 55) :: Record (c::Number)).c
+  logShow $ intersectIndices cs rpa
