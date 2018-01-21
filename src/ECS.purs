@@ -159,6 +159,17 @@ readStorage :: forall c rowD rowS listD a
 readStorage cstor ind = readStorageImpl (RLProxy :: RLProxy listD) cstor ind
 
 
+applyFn ::  forall rowS rowD rowO listD c a
+  . RowToList rowD listD
+  => ReadStorage rowS listD rowD c a
+  => Storage c a
+  => CompStorage rowS -> (Record rowD -> Record rowO) -> Int -> Record rowO
+applyFn cs f ind = f sel
+  where
+    sel = readStorage cs ind :: Record rowD
+
+
+
 class IntersectIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
@@ -168,6 +179,7 @@ instance intersectIndicesBase ::
   ( Storage c a
   , IsSymbol name
   , RowCons name (c a) rowS' rowS
+  , RowLacks name rowS'
   ) => IntersectIndices rowS (Cons name a Nil) rowD c a where
   intersectIndicesImpl _ (CompStorage im) = indices (R.get (SProxy :: SProxy name) im)
 
@@ -186,7 +198,6 @@ instance intersectIndicesRec ::
           nameP = SProxy :: SProxy name
           rest = intersectIndicesImpl (RLProxy :: RLProxy listD') cs
 
-
 intersectIndices :: forall c rowD rowS listD a
   . RowToList rowD listD
   => IntersectIndices rowS listD rowD c a
@@ -194,3 +205,10 @@ intersectIndices :: forall c rowD rowS listD a
   -> RProxy rowD
   -> Array Int
 intersectIndices cstor _ = intersectIndicesImpl (RLProxy :: RLProxy listD) cstor
+
+{-
+class ApplyFn (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (rowO :: # Type) (c :: Type -> Type) a
+    | listD -> rowD, rowD -> a, listD rowS -> c
+  where
+    applyFnImpl :: RLProxy listD -> CompStorage rowS -> (Record rowD -> Record rowO) -> Int -> Record rowO
+-}

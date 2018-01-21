@@ -37,6 +37,10 @@ arrC = [ (Tuple 2 44.1), (Tuple 5 16.3)]
 cs = CompStorage { a: fromAssocArray arrA, b: fromAssocArray arrB, c: fromAssocArray arrC}
 rpa = RProxy :: RProxy (c :: Number, b :: String)
 
+fn1 :: Record (a :: Int, b :: String) -> Record (b :: String)
+fn1 r = { b : (show r.a) <> r.b }
+
+
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
   logShow (unCS uni0).b
@@ -45,3 +49,4 @@ main = do
   logShow $ read uni2 (SProxy::SProxy "c") 13
   logShow $ read uni2 (SProxy::SProxy "c") 10
   logShow $ intersectIndices cs rpa
+  logShow $ (applyFn cs fn1 5).b
