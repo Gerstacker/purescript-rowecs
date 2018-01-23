@@ -1,15 +1,16 @@
 module ECS where
 
-import Data.Maybe
+import Data.Maybe (Maybe, fromJust)
 
 import Data.IntMap as IM
 import Data.Array as A
 import Data.Record (insert, get, set) as R
 import Partial.Unsafe (unsafePartial)
-import Prelude (($))
-import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), SProxy(SProxy), RProxy)
+import Prelude (($), map)
+import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), SProxy(SProxy), RProxy(RProxy))
 import Type.Proxy (Proxy2(Proxy2))
 import Type.Row (Cons, Nil, kind RowList)
+import Data.Tuple (Tuple(Tuple))
 
 class Storage (c :: Type -> Type) a where
   allocate :: c a
@@ -159,16 +160,6 @@ readStorage :: forall c rowD rowS listD a
 readStorage cstor ind = readStorageImpl (RLProxy :: RLProxy listD) cstor ind
 
 
-applyFn ::  forall rowS rowD rowO listD c a
-  . RowToList rowD listD
-  => ReadStorage rowS listD rowD c a
-  => Storage c a
-  => CompStorage rowS -> (Record rowD -> Record rowO) -> Int -> Record rowO
-applyFn cs f ind = f sel
-  where
-    sel = readStorage cs ind :: Record rowD
-
-
 
 class IntersectIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c
@@ -206,9 +197,21 @@ intersectIndices :: forall c rowD rowS listD a
   -> Array Int
 intersectIndices cstor _ = intersectIndicesImpl (RLProxy :: RLProxy listD) cstor
 
-{-
-class ApplyFn (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (rowO :: # Type) (c :: Type -> Type) a
-    | listD -> rowD, rowD -> a, listD rowS -> c
+
+
+applyFn ::  forall rowS rowD rowO listD c a
+  . RowToList rowD listD
+  => ReadStorage rowS listD rowD c a
+  => Storage c a
+  => CompStorage rowS -> (Record rowD -> Record rowO) -> Int -> Record rowO
+applyFn cs f ind = f sel
   where
-    applyFnImpl :: RLProxy listD -> CompStorage rowS -> (Record rowD -> Record rowO) -> Int -> Record rowO
--}
+    sel = readStorage cs ind :: Record rowD
+
+mapFn :: forall rowS rowD rowO listD c a
+  . RowToList rowD listD
+  => ReadStorage rowS listD rowD c a
+  => Storage c a
+  => IntersectIndices rowS listD rowD c a
+  => CompStorage rowS -> (Record rowD -> Record rowO) -> Array (Tuple Int (Record rowO))
+mapFn cs f = map (\x -> Tuple x (applyFn cs f x)) (intersectIndices cs (RProxy :: RProxy rowD))
