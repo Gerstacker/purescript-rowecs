@@ -72,10 +72,10 @@ write (CompStorage csrec) spr ind val = CompStorage stor'
 class AllocateStorage (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
     | listS -> c a, listS -> rowS
   where
-    allocateStorageImpl :: RLProxy listS -> CompStorage rowS
+    allocateStorageImpl :: RLProxy listS -> Record rowS
 
 instance allocateStorageNil :: AllocateStorage Nil () c a where
-  allocateStorageImpl _ = CompStorage {}
+  allocateStorageImpl _ = {}
 
 instance allocateStorageCons ::
   ( IsSymbol name
@@ -85,10 +85,10 @@ instance allocateStorageCons ::
   , AllocateStorage listS' rowS' d b
   ) => AllocateStorage (Cons name (c a) listS') rowS c a
     where
-      allocateStorageImpl _ = CompStorage $ R.insert nameP allocate $ unCS rest
+      allocateStorageImpl _ = R.insert nameP allocate rest
         where
           nameP = SProxy :: SProxy name
-          rest = allocateStorageImpl (RLProxy :: RLProxy listS') :: CompStorage rowS'
+          rest = allocateStorageImpl (RLProxy :: RLProxy listS') :: Record rowS'
 
 allocateStorage :: forall listS rowS c a
   . RowToList rowS listS
@@ -96,15 +96,15 @@ allocateStorage :: forall listS rowS c a
   => Storage c a
   => RProxy rowS
   -> CompStorage rowS
-allocateStorage _ = allocateStorageImpl (RLProxy :: RLProxy listS)
+allocateStorage _ = CompStorage $ allocateStorageImpl (RLProxy :: RLProxy listS)
 
 class AllocateStorageUniform (c :: Type -> Type) (listD :: RowList)  (rowS :: # Type) a
     | listD c -> rowS a, rowS -> c
   where
-    allocateStorageUniformImpl :: RLProxy listD -> Proxy2 c -> CompStorage rowS
+    allocateStorageUniformImpl :: RLProxy listD -> Proxy2 c -> Record rowS
 
 instance allocateStorageUniformNil :: AllocateStorageUniform m Nil () a where
-  allocateStorageUniformImpl _ _ = CompStorage {}
+  allocateStorageUniformImpl _ _ = {}
 
 instance allocateStorageUniformCons ::
   ( IsSymbol name
@@ -113,10 +113,10 @@ instance allocateStorageUniformCons ::
   , RowLacks name rowS'
   , AllocateStorageUniform c listD' rowS' b
   ) => AllocateStorageUniform c (Cons name a listD') rowS a where
-  allocateStorageUniformImpl _ _ = CompStorage $ R.insert nameP allocate $ unCS rest
+  allocateStorageUniformImpl _ _ = R.insert nameP allocate rest
     where
       nameP = SProxy :: SProxy name
-      rest = allocateStorageUniformImpl (RLProxy :: RLProxy listD') (Proxy2 :: Proxy2 c) :: CompStorage rowS'
+      rest = allocateStorageUniformImpl (RLProxy :: RLProxy listD') (Proxy2 :: Proxy2 c) :: Record rowS'
 
 allocateStorageUniform :: forall c rowD listD a rowS
   . RowToList rowD listD
@@ -125,7 +125,7 @@ allocateStorageUniform :: forall c rowD listD a rowS
   => RProxy rowD
   -> Proxy2 c
   -> CompStorage rowS
-allocateStorageUniform _ = allocateStorageUniformImpl (RLProxy :: RLProxy listD)
+allocateStorageUniform _ cprox = CompStorage $ allocateStorageUniformImpl (RLProxy :: RLProxy listD)  cprox
 
 
 class ReadStorage (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type)  a
