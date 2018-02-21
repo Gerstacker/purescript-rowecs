@@ -1,16 +1,15 @@
 module ECS where
 
-import Data.Maybe (Maybe, fromJust)
-
-import Data.IntMap as IM
 import Data.Array as A
-import Data.Record (insert, get, set) as R
+import Data.IntMap as IM
+import Data.Maybe (Maybe, fromJust)
+import Data.Record (insert, get, set, delete) as R
+import Data.Tuple (Tuple(Tuple))
 import Partial.Unsafe (unsafePartial)
 import Prelude (($), map)
 import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), SProxy(SProxy), RProxy(RProxy))
 import Type.Proxy (Proxy2(Proxy2))
 import Type.Row (Cons, Nil, kind RowList)
-import Data.Tuple (Tuple(Tuple))
 
 class Storage (c :: Type -> Type) a where
   allocate :: c a
@@ -159,7 +158,42 @@ readStorage :: forall c rowD rowS listD a
   -> Record rowD
 readStorage cstor ind = readStorageImpl (RLProxy :: RLProxy listD) cstor ind
 
+class WriteStorage (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
+    | listD -> rowD, rowD -> a, listD -> c a
+  where
+    writeStorageImpl :: RLProxy listD -> CompStorage rowS -> Int -> Record rowD -> CompStorage rowS
 
+instance writeStorageNil :: WriteStorage rowS Nil () c a where
+    writeStorageImpl _ cstor _ _ = cstor
+
+
+instance writeStorageCons ::
+  ( IsSymbol name
+  , Storage c a
+  , RowCons name a rowD' rowD
+  , RowLacks name rowD'
+  , RowCons name (c a) rowS' rowS
+  , RowLacks name rowS'
+  , WriteStorage rowS listD' rowD' d b
+  ) => WriteStorage rowS (Cons name a listD') rowD c a
+    where
+      writeStorageImpl _ cstor ind drec = CompStorage $ R.set nameP nstr $ unCS rest
+        where
+          nameP = SProxy :: SProxy name
+          str = (R.get nameP $ unCS cstor) :: c a
+          wrdat = R.get nameP drec
+          nstr = set str ind wrdat
+          delrec = (R.delete nameP drec) :: Record rowD'
+          rest = writeStorageImpl (RLProxy :: RLProxy listD') cstor ind delrec
+
+writeStorage :: forall c rowD rowS listD a
+  . RowToList rowD listD
+  => WriteStorage rowS listD rowD c a
+  => CompStorage rowS
+  -> Int
+  -> Record rowD
+  -> CompStorage rowS
+writeStorage = writeStorageImpl (RLProxy :: RLProxy listD)
 
 class IntersectIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c

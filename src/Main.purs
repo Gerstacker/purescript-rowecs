@@ -32,7 +32,13 @@ uni3 = write uni2 (SProxy::SProxy "a") 13 44
 
 rw = RProxy :: RProxy (c::Number, a::Int)
 
+wr1 :: CS
+wr1 = writeStorage uni3 99 { a : 17::Int, b : "written"}
+
 rs = readStorage uni3 13 :: Record (c::Number, a::Int)
+rwr1A = readStorage wr1 99 :: Record (a::Int)
+rwr1B = readStorage wr1 99 :: Record (b::String)
+rwr1Both = readStorage wr1 99 :: Record (a::Int, b::String)
 
 het0 :: CS
 het0 = allocateStorage (RProxy :: RProxy SRow)
@@ -56,10 +62,21 @@ fn1 r = { b : (show r.a) <> r.b }
 
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
+  logShow "Empty storage b::String"
   logShow (unCS uni0).b
+  logShow "1-element assoc array for c::Number"
   logShow (unCS uni1).c
+  logShow "Read c[13]:"
   logShow $ read uni1 (SProxy::SProxy "c") 13
+  logShow "Read c[13] after modifying b[12]"
   logShow $ read uni2 (SProxy::SProxy "c") 13
+  logShow "Read non-existent c[10]"
   logShow $ read uni2 (SProxy::SProxy "c") 10
+  logShow "all indices that have (c::Number,b::String) attributes"
   logShow $ intersectIndices cs rpa
+  logShow $ "append (show a[5]) and b[5]"
   logShow $ (applyFn cs fn1 5).b
+  logShow "rs is readStorage uni3 13 for c and a"
+  logShow $ show rs.a <> show rs.c
+  logShow "rwr1A, rwr1B, rwr1Both"
+  logShow $ (show rwr1A.a) <> " " <> (show rwr1B.b) <> " " <> (show rwr1Both.a) <> " " <> (show rwr1Both.b)
