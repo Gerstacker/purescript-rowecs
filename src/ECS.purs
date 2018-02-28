@@ -19,7 +19,6 @@ class Storage (c :: Type -> Type) a where
   indices :: c a -> Array Int
   member :: c a -> Int -> Boolean
 
-
 instance storageIntMap :: Storage IM.IntMap a where
   allocate = IM.empty
   get im ind = IM.lookup ind im
@@ -28,14 +27,7 @@ instance storageIntMap :: Storage IM.IntMap a where
   indices im = IM.indices im
   member im ind = IM.member ind im
 
-
 newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
-
-unCS :: forall rowS . CompStorage rowS -> Record rowS
-unCS (CompStorage rec) = rec
-
-
-
 
 read :: forall rowS name a c rowS'
   . Storage c a
@@ -100,7 +92,7 @@ allocateStorage _ = CompStorage $ allocateStorageImpl (RLProxy :: RLProxy listS)
 class ShowStorage (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
     | listS -> c a, listS -> rowS
   where
-    showStorageImpl :: RLProxy listS -> CompStorage rowS -> String
+    showStorageImpl :: RLProxy listS -> Record rowS -> String
 
 instance showStorageNil :: ShowStorage Nil () c a where
   showStorageImpl _ _ = ""
@@ -113,16 +105,16 @@ instance showStorageCons ::
   , RowLacks name rowS'
   , ShowStorage listS' rowS' d b
   ) => ShowStorage (Cons name (c a) listS') rowS c a where
-      showStorageImpl _ (CompStorage srec) = show (R.get nameP srec) <> rest
+      showStorageImpl _ srec = show (R.get nameP srec) <> rest
         where
           nameP = SProxy :: SProxy name
-          rest = showStorageImpl (RLProxy :: RLProxy listS') (CompStorage delrec)
+          rest = showStorageImpl (RLProxy :: RLProxy listS') delrec
           delrec = (R.delete nameP srec) :: Record rowS'
 
 instance compStorageShow ::
   (ShowStorage listS rowS c a
   , RowToList rowS listS) => Show (CompStorage rowS) where
-  show = showStorageImpl (RLProxy :: RLProxy listS)
+  show (CompStorage srec)= showStorageImpl (RLProxy :: RLProxy listS) srec
 
 class AllocateStorageUniform (c :: Type -> Type) (listD :: RowList)  (rowS :: # Type) a
     | listD c -> rowS a, rowS -> c
@@ -225,7 +217,7 @@ writeStorage (CompStorage srec) ind drec = CompStorage $ writeStorageImpl (RLPro
 class IntersectIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
-    intersectIndicesImpl :: RLProxy listD -> CompStorage rowS -> Array Int
+    intersectIndicesImpl :: RLProxy listD -> Record rowS -> Array Int
 
 instance intersectIndicesBase ::
   ( Storage c a
@@ -233,7 +225,7 @@ instance intersectIndicesBase ::
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowS'
   ) => IntersectIndices rowS (Cons name a Nil) rowD c a where
-  intersectIndicesImpl _ (CompStorage im) = indices (R.get (SProxy :: SProxy name) im)
+  intersectIndicesImpl _ srec = indices (R.get (SProxy :: SProxy name) srec)
 
 instance intersectIndicesRec ::
   ( Storage c a
@@ -244,11 +236,11 @@ instance intersectIndicesRec ::
   , IntersectIndices rowS listD' rowD' d b
   ) => IntersectIndices rowS (Cons name a listD') rowD c a
     where
-      intersectIndicesImpl _ cs = A.filter f rest
+      intersectIndicesImpl _ srec = A.filter f rest
         where
-          f x = member (R.get nameP (unCS cs)) x
+          f x = member (R.get nameP srec) x
           nameP = SProxy :: SProxy name
-          rest = intersectIndicesImpl (RLProxy :: RLProxy listD') cs
+          rest = intersectIndicesImpl (RLProxy :: RLProxy listD') srec
 
 intersectIndices :: forall c rowD rowS listD a
   . RowToList rowD listD
@@ -256,7 +248,7 @@ intersectIndices :: forall c rowD rowS listD a
   => CompStorage rowS
   -> RProxy rowD
   -> Array Int
-intersectIndices cstor _ = intersectIndicesImpl (RLProxy :: RLProxy listD) cstor
+intersectIndices (CompStorage srec) _ = intersectIndicesImpl (RLProxy :: RLProxy listD) srec
 
 
 

@@ -67,9 +67,9 @@ fn1 r = { b : (show r.a) <> r.b }
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
   logShow "Empty storage b::String"
-  logShow (unCS uni0).b
+  logShow uni0
   logShow "1-element assoc array for c::Number"
-  logShow (unCS uni1).c
+  logShow uni1
   logShow "Read c[13]:"
   logShow $ (readStorage uni1 13 :: Record (c::Number)).c
 --  logShow $ read uni1 (SProxy::SProxy "c") 13
