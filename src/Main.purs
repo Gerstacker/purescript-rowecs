@@ -80,3 +80,5 @@ main = do
   logShow $ show rs.a <> show rs.c
   logShow "rwr1A, rwr1B, rwr1Both"
   logShow $ (show rwr1A.a) <> " " <> (show rwr1B.b) <> " " <> (show rwr1Both.a) <> " " <> (show rwr1Both.b)
+  logShow $ show uni3
+  

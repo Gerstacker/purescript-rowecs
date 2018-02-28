@@ -6,7 +6,7 @@ import Data.Maybe (Maybe, fromJust)
 import Data.Record (insert, get, set, delete) as R
 import Data.Tuple (Tuple(Tuple))
 import Partial.Unsafe (unsafePartial)
-import Prelude (($), map)
+import Prelude (map, ($), (<>), show, class Show)
 import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), SProxy(SProxy), RProxy(RProxy))
 import Type.Proxy (Proxy2(Proxy2))
 import Type.Row (Cons, Nil, kind RowList)
@@ -96,6 +96,34 @@ allocateStorage :: forall listS rowS c a
   => RProxy rowS
   -> CompStorage rowS
 allocateStorage _ = CompStorage $ allocateStorageImpl (RLProxy :: RLProxy listS)
+
+class ShowStorage (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
+    | listS -> c a, listS -> rowS
+  where
+    showStorageImpl :: RLProxy listS -> CompStorage rowS -> String
+
+instance showStorageNil :: ShowStorage Nil () c a where
+  showStorageImpl _ _ = ""
+
+instance showStorageCons ::
+  ( IsSymbol name
+  , Storage c a
+  , Show (c a)
+  , RowCons name (c a) rowS' rowS
+  , RowLacks name rowS'
+  , ShowStorage listS' rowS' d b
+  ) => ShowStorage (Cons name (c a) listS') rowS c a where
+      showStorageImpl _ cstor = show (R.get nameP srec) <> rest
+        where
+          srec = unCS cstor
+          nameP = SProxy :: SProxy name
+          rest = showStorageImpl (RLProxy :: RLProxy listS') (CompStorage delrec)
+          delrec = (R.delete nameP srec) :: Record rowS'
+
+instance compStorageShow ::
+  (ShowStorage listS rowS c a
+  , RowToList rowS listS) => Show (CompStorage rowS) where
+  show = showStorageImpl (RLProxy :: RLProxy listS)
 
 class AllocateStorageUniform (c :: Type -> Type) (listD :: RowList)  (rowS :: # Type) a
     | listD c -> rowS a, rowS -> c
