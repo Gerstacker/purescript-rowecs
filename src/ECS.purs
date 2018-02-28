@@ -41,8 +41,8 @@ read :: forall rowS name a c rowS'
   . Storage c a
   => IsSymbol name
   => RowCons name (c a) rowS' rowS
-  => CompStorage rowS -> SProxy name -> Int -> Maybe a
-read (CompStorage csrec) spr ind = get v ind
+  => Record rowS -> SProxy name -> Int -> Maybe a
+read csrec spr ind = get v ind
   where
     v = (R.get spr csrec) :: c a
 
@@ -51,8 +51,8 @@ unsafeRead :: forall rowS name a c rowS'
   . IsSymbol name
   => RowCons name (c a) rowS' rowS
   => Storage c a
-  => CompStorage rowS -> SProxy name -> Int -> a
-unsafeRead (CompStorage csrec) spr ind = unsafePartial $ fromJust $ get v ind
+  => Record rowS -> SProxy name -> Int -> a
+unsafeRead csrec spr ind = unsafePartial $ fromJust $ get v ind
   where
     v = (R.get spr csrec) :: c a
 
@@ -61,8 +61,8 @@ write :: forall rowS name a c rowS'
   . Storage c a
   => IsSymbol name
   => RowCons name (c a) rowS' rowS
-  => CompStorage rowS -> SProxy name -> Int -> a -> CompStorage rowS
-write (CompStorage csrec) spr ind val = CompStorage stor'
+  => Record rowS -> SProxy name -> Int -> a -> Record rowS
+write csrec spr ind val = stor'
   where
     intmap = (R.get spr csrec) :: c a
     intmap' = set intmap ind val
@@ -113,9 +113,8 @@ instance showStorageCons ::
   , RowLacks name rowS'
   , ShowStorage listS' rowS' d b
   ) => ShowStorage (Cons name (c a) listS') rowS c a where
-      showStorageImpl _ cstor = show (R.get nameP srec) <> rest
+      showStorageImpl _ (CompStorage srec) = show (R.get nameP srec) <> rest
         where
-          srec = unCS cstor
           nameP = SProxy :: SProxy name
           rest = showStorageImpl (RLProxy :: RLProxy listS') (CompStorage delrec)
           delrec = (R.delete nameP srec) :: Record rowS'
@@ -158,7 +157,7 @@ allocateStorageUniform _ cprox = CompStorage $ allocateStorageUniformImpl (RLPro
 class ReadStorage (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type)  a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
-    readStorageImpl :: RLProxy listD -> CompStorage rowS -> Int -> Record rowD
+    readStorageImpl :: RLProxy listD -> Record rowS -> Int -> Record rowD
 
 instance readStorageNil :: ReadStorage rowS Nil () c a where
    readStorageImpl _ _ _ = {}
@@ -172,11 +171,11 @@ instance readStorageCons ::
   , ReadStorage rowS listD' rowD' d b
   ) => ReadStorage rowS (Cons name a listD') rowD c a
     where
-      readStorageImpl _ cstor ind = R.insert nameP val rest
+      readStorageImpl _ srec ind = R.insert nameP val rest
         where
           nameP = SProxy :: SProxy name
-          val = unsafeRead cstor nameP ind :: a
-          rest = readStorageImpl (RLProxy :: RLProxy listD') cstor ind
+          val = unsafeRead srec nameP ind :: a
+          rest = readStorageImpl (RLProxy :: RLProxy listD') srec ind
 
 readStorage :: forall c rowD rowS listD a
   . RowToList rowD listD
@@ -184,15 +183,15 @@ readStorage :: forall c rowD rowS listD a
   => CompStorage rowS
   -> Int
   -> Record rowD
-readStorage cstor ind = readStorageImpl (RLProxy :: RLProxy listD) cstor ind
+readStorage (CompStorage srec) ind = readStorageImpl (RLProxy :: RLProxy listD) srec ind
 
 class WriteStorage (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD -> c a
   where
-    writeStorageImpl :: RLProxy listD -> CompStorage rowS -> Int -> Record rowD -> CompStorage rowS
+    writeStorageImpl :: RLProxy listD -> Record rowS -> Int -> Record rowD -> Record rowS
 
 instance writeStorageNil :: WriteStorage rowS Nil () c a where
-    writeStorageImpl _ cstor _ _ = cstor
+    writeStorageImpl _ srec _ _ = srec
 
 
 instance writeStorageCons ::
@@ -205,14 +204,14 @@ instance writeStorageCons ::
   , WriteStorage rowS listD' rowD' d b
   ) => WriteStorage rowS (Cons name a listD') rowD c a
     where
-      writeStorageImpl _ cstor ind drec = CompStorage $ R.set nameP nstr $ unCS rest
+      writeStorageImpl _ srec ind drec = R.set nameP nstr rest
         where
           nameP = SProxy :: SProxy name
-          str = (R.get nameP $ unCS cstor) :: c a
+          str = (R.get nameP srec) :: c a
           wrdat = R.get nameP drec
           nstr = set str ind wrdat
           delrec = (R.delete nameP drec) :: Record rowD'
-          rest = writeStorageImpl (RLProxy :: RLProxy listD') cstor ind delrec
+          rest = writeStorageImpl (RLProxy :: RLProxy listD') srec ind delrec
 
 writeStorage :: forall c rowD rowS listD a
   . RowToList rowD listD
@@ -221,7 +220,7 @@ writeStorage :: forall c rowD rowS listD a
   -> Int
   -> Record rowD
   -> CompStorage rowS
-writeStorage = writeStorageImpl (RLProxy :: RLProxy listD)
+writeStorage (CompStorage srec) ind drec = CompStorage $ writeStorageImpl (RLProxy :: RLProxy listD) srec ind drec
 
 class IntersectIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c
