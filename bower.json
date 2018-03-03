@@ -12,7 +12,8 @@
     "purescript-record-extra": "^0.1.0",
     "purescript-intmaps": "https://github.com/Gerstacker/purescript-intmaps.git#master",
     "purescript-proxy": "^2.1.0",
-    "purescript-arrays": "^4.2.2"
+    "purescript-arrays": "^4.2.2",
+    "purescript-foldable-traversable": "^3.7.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0"

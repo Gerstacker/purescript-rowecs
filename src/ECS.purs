@@ -1,12 +1,12 @@
 module ECS where
 
+import Data.Foldable (foldl)
 import Data.Array as A
 import Data.IntMap as IM
 import Data.Maybe (Maybe, fromJust)
 import Data.Record (insert, get, set, delete) as R
-import Data.Tuple (Tuple(Tuple))
 import Partial.Unsafe (unsafePartial)
-import Prelude (map, ($), (<>), show, class Show)
+import Prelude (($), (<>), show, class Show)
 import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), SProxy(SProxy), RProxy(RProxy))
 import Type.Proxy (Proxy2(Proxy2))
 import Type.Row (Cons, Nil, kind RowList)
@@ -251,7 +251,6 @@ intersectIndices :: forall c rowD rowS listD a
 intersectIndices (CompStorage srec) _ = intersectIndicesImpl (RLProxy :: RLProxy listD) srec
 
 
-
 applyFn ::  forall rowS rowD rowO listD c a
   . RowToList rowD listD
   => ReadStorage rowS listD rowD c a
@@ -261,10 +260,24 @@ applyFn cs f ind = f sel
   where
     sel = readStorage cs ind :: Record rowD
 
-mapFn :: forall rowS rowD rowO listD c a
+
+mapFn :: forall rowS rowD rowO listD c a listO listS
   . RowToList rowD listD
+  => RowToList rowO listO
+  => RowToList rowS listS
+  => AllocateStorage listS rowS c a
   => ReadStorage rowS listD rowD c a
+  => WriteStorage rowS listO rowO c a
   => Storage c a
   => IntersectIndices rowS listD rowD c a
-  => CompStorage rowS -> (Record rowD -> Record rowO) -> Array (Tuple Int (Record rowO))
-mapFn cs f = map (\x -> Tuple x (applyFn cs f x)) (intersectIndices cs (RProxy :: RProxy rowD))
+  => CompStorage rowS -> (Record rowD -> Record rowO) -> CompStorage rowS
+mapFn cs f = foldl fn empt indices
+  where
+    empt = allocateStorage (RProxy :: RProxy rowS)
+    --fn :: forall listO . RowToList rowO listO => WriteStorage rowS listO rowO c a => CompStorage rowS -> Int -> CompStorage rowS
+    fn m x = wSm x val
+      where
+        --wSm :: forall listO . RowToList rowO listO => WriteStorage rowS listO rowO c a => Int -> Record rowO -> CompStorage rowS
+        wSm = (writeStorage m)
+        val = (applyFn cs f x) :: Record rowO
+    indices = intersectIndices cs (RProxy :: RProxy rowD)
