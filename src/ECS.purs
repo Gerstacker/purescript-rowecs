@@ -1,7 +1,7 @@
 module ECS where
 
-import Data.Foldable (foldl)
 import Data.Array as A
+import Data.Foldable (foldl)
 import Data.IntMap as IM
 import Data.Maybe (Maybe, fromJust)
 import Data.Record (insert, get, set, delete) as R
@@ -18,6 +18,7 @@ class Storage (c :: Type -> Type) a where
   del :: c a -> Int -> c a
   indices :: c a -> Array Int
   member :: c a -> Int -> Boolean
+  merge :: c a -> c a -> c a
 
 instance storageIntMap :: Storage IM.IntMap a where
   allocate = IM.empty
@@ -26,6 +27,7 @@ instance storageIntMap :: Storage IM.IntMap a where
   del im ind = IM.delete ind im
   indices im = IM.indices im
   member im ind = IM.member ind im
+  merge = IM.unionLeft
 
 newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
 
@@ -177,6 +179,41 @@ readStorage :: forall c rowD rowS listD a
   -> Record rowD
 readStorage (CompStorage srec) ind = readStorageImpl (RLProxy :: RLProxy listD) srec ind
 
+class MergeStorage   (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
+    | listS -> rowS, rowS -> a, listS -> c
+  where
+    mergeStorageImpl :: RLProxy listS -> Record rowS -> Record rowS -> Record rowS
+
+instance mergeStorageNil :: MergeStorage Nil () c a where
+  mergeStorageImpl _ _ _ = {}
+
+instance mergeStorageCons ::
+  ( IsSymbol name
+  , Storage c a
+  , RowCons name (c a) rowS' rowS
+  , RowLacks name rowS'
+  , MergeStorage listS' rowS' d b
+  ) => MergeStorage (Cons name (c a) listS') rowS c a
+    where
+      mergeStorageImpl _ upd inp = R.insert nameP val rest
+        where
+          nameP = SProxy :: SProxy name
+          val = merge valUpd valInp
+          valUpd = (R.get nameP upd)
+          valInp = (R.get nameP inp)
+          delUpd = (R.delete nameP upd) :: Record rowS'
+          delInp = R.delete nameP inp
+          rest = mergeStorageImpl (RLProxy :: RLProxy listS') delUpd delInp
+
+mergeStorage :: forall rowS listS c a
+  . RowToList rowS listS
+  => MergeStorage listS rowS c a
+  => CompStorage rowS
+  -> CompStorage rowS
+  -> CompStorage rowS
+mergeStorage (CompStorage recUpd) (CompStorage recInp) = CompStorage $ mergeStorageImpl rlp recUpd recInp
+  where rlp = RLProxy :: RLProxy listS
+
 class WriteStorage (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD -> c a
   where
@@ -268,16 +305,15 @@ mapFn :: forall rowS rowD rowO listD c a listO listS d b
   => AllocateStorage listS rowS c a
   => ReadStorage rowS listD rowD c a
   => WriteStorage rowS listO rowO d b
+  => MergeStorage listS rowS c a
   => Storage c a
   => IntersectIndices rowS listD rowD c a
   => CompStorage rowS -> (Record rowD -> Record rowO) -> CompStorage rowS
-mapFn cs f = foldl fn empt indices
+mapFn cs f = mergeStorage (foldl fn empt indices) cs
   where
     empt = allocateStorage (RProxy :: RProxy rowS)
-    --fn :: forall listO . RowToList rowO listO => WriteStorage rowS listO rowO c a => CompStorage rowS -> Int -> CompStorage rowS
     fn m x = wSm x val
       where
-        --wSm :: forall listO . RowToList rowO listO => WriteStorage rowS listO rowO c a => Int -> Record rowO -> CompStorage rowS
         wSm = (writeStorage m)
         val = (applyFn cs f x) :: Record rowO
     indices = intersectIndices cs (RProxy :: RProxy rowD)

@@ -9,7 +9,10 @@ import Data.Record.Extra (type (:::))
 import Data.Tuple (Tuple(Tuple))
 import Prelude (Unit, discard, show, ($), (<>))
 import Type.Prelude (RProxy(RProxy), SProxy(SProxy))
+import Data.Semiring ((+), (*))
 import Type.Proxy (Proxy2(Proxy2))
+import Data.String (length)
+import Data.Int (toNumber)
 
 
 u = RProxy :: RProxy (a::Int, b::String, c::Number)
@@ -35,10 +38,20 @@ uni4 :: CS
 uni4 = writeStorage uni3 12 {b:"KFJC", c:89.7}
 
 fnABtoC :: Record (a::Int, b::String) -> Record (c::Number)
-fnABtoC _ = {c:3.14}
+fnABtoC {a,b} = {c:val}
+  where
+    val = (toNumber (length b)) + (fa * 0.001)
+    fa :: Number
+    fa = toNumber a
+
+fnBCtoB :: Record (b::String, c::Number) -> Record (b::String)
+fnBCtoB {b,c} = {b:b <> (show c)}
 
 uni5 :: CS
 uni5 = mapFn uni4 fnABtoC
+
+--uni6 :: CS
+--uni6 = mapFn uni5 fnBCtoB
 
 rw = RProxy :: RProxy (c::Number, a::Int)
 
@@ -93,4 +106,3 @@ main = do
   log $ (show rwr1A.a) <> " " <> (show rwr1B.b) <> " " <> (show rwr1Both.a) <> " " <> (show rwr1Both.b)
   log $ "\n" <> "uni4\n" <> show uni4
   log $ "\n" <> "uni5\n" <> show uni5
-  
