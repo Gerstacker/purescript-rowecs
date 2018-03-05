@@ -105,7 +105,7 @@ instance showStorageCons ::
   , RowLacks name rowS'
   , ShowStorage listS' rowS' d b
   ) => ShowStorage (Cons name (c a) listS') rowS c a where
-      showStorageImpl _ srec = show (R.get nameP srec) <> rest
+      showStorageImpl _ srec = show (R.get nameP srec) <> "\n" <> rest
         where
           nameP = SProxy :: SProxy name
           rest = showStorageImpl (RLProxy :: RLProxy listS') delrec
@@ -116,12 +116,12 @@ instance compStorageShow ::
   , RowToList rowS listS) => Show (CompStorage rowS) where
   show (CompStorage srec)= showStorageImpl (RLProxy :: RLProxy listS) srec
 
-class AllocateStorageUniform (c :: Type -> Type) (listD :: RowList)  (rowS :: # Type) a
+class AllocateStorageUniform (listD :: RowList)  (rowS :: # Type) (c :: Type -> Type) a
     | listD c -> rowS a, rowS -> c
   where
     allocateStorageUniformImpl :: RLProxy listD -> Proxy2 c -> Record rowS
 
-instance allocateStorageUniformNil :: AllocateStorageUniform m Nil () a where
+instance allocateStorageUniformNil :: AllocateStorageUniform Nil () c a where
   allocateStorageUniformImpl _ _ = {}
 
 instance allocateStorageUniformCons ::
@@ -129,8 +129,8 @@ instance allocateStorageUniformCons ::
   , Storage c a
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowS'
-  , AllocateStorageUniform c listD' rowS' b
-  ) => AllocateStorageUniform c (Cons name a listD') rowS a where
+  , AllocateStorageUniform listD' rowS' c b
+  ) => AllocateStorageUniform (Cons name a listD') rowS c a where
   allocateStorageUniformImpl _ _ = R.insert nameP allocate rest
     where
       nameP = SProxy :: SProxy name
@@ -138,7 +138,7 @@ instance allocateStorageUniformCons ::
 
 allocateStorageUniform :: forall c rowD listD a rowS
   . RowToList rowD listD
-  => AllocateStorageUniform c listD rowS a
+  => AllocateStorageUniform listD rowS c a
   => Storage c a
   => RProxy rowD
   -> Proxy2 c
@@ -261,13 +261,13 @@ applyFn cs f ind = f sel
     sel = readStorage cs ind :: Record rowD
 
 
-mapFn :: forall rowS rowD rowO listD c a listO listS
+mapFn :: forall rowS rowD rowO listD c a listO listS d b
   . RowToList rowD listD
   => RowToList rowO listO
   => RowToList rowS listS
   => AllocateStorage listS rowS c a
   => ReadStorage rowS listD rowD c a
-  => WriteStorage rowS listO rowO c a
+  => WriteStorage rowS listO rowO d b
   => Storage c a
   => IntersectIndices rowS listD rowD c a
   => CompStorage rowS -> (Record rowD -> Record rowO) -> CompStorage rowS

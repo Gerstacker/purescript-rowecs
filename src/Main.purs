@@ -1,15 +1,15 @@
 module Main where
 
-import Prelude (Unit, discard, show, ($), (<>))
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, logShow)
-import Data.IntMap (IntMap, fromAssocArray)
---import Data.Record.Extra (mapRecord, class MapRecord)
---import Type.Prelude (class RowToList)
-import Type.Proxy (Proxy2(Proxy2))
-import Type.Prelude(RProxy(RProxy), SProxy(SProxy))
-import Data.Tuple (Tuple(Tuple))
 import ECS
+
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE, logShow, log)
+import Data.IntMap (IntMap, fromAssocArray)
+import Data.Record.Extra (type (:::))
+import Data.Tuple (Tuple(Tuple))
+import Prelude (Unit, discard, show, ($), (<>))
+import Type.Prelude (RProxy(RProxy), SProxy(SProxy))
+import Type.Proxy (Proxy2(Proxy2))
 
 
 u = RProxy :: RProxy (a::Int, b::String, c::Number)
@@ -24,14 +24,21 @@ uni0=allocateStorageUniform u (Proxy2 :: Proxy2 IntMap)
 --t = CompStorage $ set (unCompStorage v).b 4 "ffuu"
 
 uni1 :: CS
-uni1 = writeStorage uni0 13 { c:7.5 }
+uni1 = writeStorage uni0 13 { c:7.5, a:44 }
 --uni1 = write uni0 (SProxy::SProxy "c") 13 7.5
 uni2 :: CS
 uni2 = writeStorage uni1 12 { b:"asdf" }
 --uni2 = write uni1 (SProxy::SProxy "b") 12 "asdf"
 uni3 :: CS
-uni3 = writeStorage uni2 13 { a:44 }
---uni3 = write uni2 (SProxy::SProxy "a") 13 44
+uni3 = writeStorage uni2 89 { a:45, b:"Frank"}
+uni4 :: CS
+uni4 = writeStorage uni3 12 {b:"KFJC", c:89.7}
+
+fnABtoC :: Record (a::Int, b::String) -> Record (c::Number)
+fnABtoC _ = {c:3.14}
+
+uni5 :: CS
+uni5 = mapFn uni4 fnABtoC
 
 rw = RProxy :: RProxy (c::Number, a::Int)
 
@@ -80,8 +87,10 @@ main = do
   logShow $ intersectIndices cs rpa
   logShow $ "append (show a[5]) and b[5]"
   logShow $ (applyFn cs fn1 5).b
-  logShow "rs is readStorage uni3 13 for c and a"
-  logShow $ show rs.a <> show rs.c
-  logShow "rwr1A, rwr1B, rwr1Both"
-  logShow $ (show rwr1A.a) <> " " <> (show rwr1B.b) <> " " <> (show rwr1Both.a) <> " " <> (show rwr1Both.b)
-  logShow $ show uni3
+  log $ "\n" <> "rs is readStorage uni3 13 for c and a"
+  log $ show rs.a <> " " <> show rs.c
+  log $ "\n" <> "rwr1A, rwr1B, rwr1Both"
+  log $ (show rwr1A.a) <> " " <> (show rwr1B.b) <> " " <> (show rwr1Both.a) <> " " <> (show rwr1Both.b)
+  log $ "\n" <> "uni4\n" <> show uni4
+  log $ "\n" <> "uni5\n" <> show uni5
+  
