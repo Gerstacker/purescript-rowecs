@@ -27,7 +27,7 @@ instance storageIntMap :: Storage IM.IntMap a where
   del im ind = IM.delete ind im
   indices im = IM.indices im
   member im ind = IM.member ind im
-  merge = IM.unionLeft
+  merge = IM.unionRight
 
 newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
 
@@ -298,16 +298,16 @@ applyFn cs f ind = f sel
     sel = readStorage cs ind :: Record rowD
 
 
-mapFn :: forall rowS rowD rowO listD c a listO listS d b
+mapFn :: forall rowS rowD rowO listD m1 a1 m2 a2 m3 a3 m4 a4 listO listS
   . RowToList rowD listD
   => RowToList rowO listO
   => RowToList rowS listS
-  => AllocateStorage listS rowS c a
-  => ReadStorage rowS listD rowD c a
-  => WriteStorage rowS listO rowO d b
-  => MergeStorage listS rowS c a
-  => Storage c a
-  => IntersectIndices rowS listD rowD c a
+  => AllocateStorage listS rowS m1 a1
+  => ReadStorage rowS listD rowD m2 a2
+  => WriteStorage rowS listO rowO m3 a3
+  => MergeStorage listS rowS m1 a1
+  => Storage m1 a1 => Storage m2 a2 => Storage m3 a3 => Storage m4 a4
+  => IntersectIndices rowS listD rowD m4 a4
   => CompStorage rowS -> (Record rowD -> Record rowO) -> CompStorage rowS
 mapFn cs f = mergeStorage (foldl fn empt indices) cs
   where

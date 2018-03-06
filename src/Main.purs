@@ -50,8 +50,8 @@ fnBCtoB {b,c} = {b:b <> (show c)}
 uni5 :: CS
 uni5 = mapFn uni4 fnABtoC
 
---uni6 :: CS
---uni6 = mapFn uni5 fnBCtoB
+uni6 :: CS
+uni6 = mapFn uni5 fnBCtoB
 
 rw = RProxy :: RProxy (c::Number, a::Int)
 
@@ -67,6 +67,7 @@ het0 :: CS
 het0 = allocateStorage (RProxy :: RProxy SRow)
 het1 :: CS
 het1 = writeStorage het0 55 { c:2.3 }
+het2 = writeStorage het1 55 { c:5.6 }
 --het1 = write het0 (SProxy::SProxy "c") 55 2.3
 
 arrA :: Array (Tuple Int Int)
@@ -106,3 +107,8 @@ main = do
   log $ (show rwr1A.a) <> " " <> (show rwr1B.b) <> " " <> (show rwr1Both.a) <> " " <> (show rwr1Both.b)
   log $ "\n" <> "uni4\n" <> show uni4
   log $ "\n" <> "uni5\n" <> show uni5
+  log $ "\n" <> "uni6\n" <> show uni6
+
+  log $ "\n" <> "het1\n" <> show het1
+
+  log $ "\n" <> "het2\n" <> show het2
