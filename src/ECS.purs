@@ -5,6 +5,8 @@ import Data.Foldable (foldl)
 import Data.IntMap as IM
 import Data.Maybe (Maybe, fromJust)
 import Data.Record (insert, get, set, delete) as R
+import Data.Ord (compare)
+import Data.Ordering (Ordering(..))
 import Partial.Unsafe (unsafePartial)
 import Prelude (($), (<>), show, class Show)
 import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), SProxy(SProxy), RProxy(RProxy))
@@ -17,6 +19,7 @@ class Storage (c :: Type -> Type) a where
   set :: c a -> Int -> a -> c a
   del :: c a -> Int -> c a
   indices :: c a -> Array Int
+  size :: c a -> Int
   member :: c a -> Int -> Boolean
   merge :: c a -> c a -> c a
 
@@ -26,6 +29,7 @@ instance storageIntMap :: Storage IM.IntMap a where
   set im ind val = IM.insert ind val im
   del im ind = IM.delete ind im
   indices im = IM.indices im
+  size im = IM.size im
   member im ind = IM.member ind im
   merge = IM.unionRight
 
@@ -251,6 +255,45 @@ writeStorage :: forall c rowD rowS listD a
   -> CompStorage rowS
 writeStorage (CompStorage srec) ind drec = CompStorage $ writeStorageImpl (RLProxy :: RLProxy listD) srec ind drec
 
+class MinIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
+    | listD -> rowD, rowD -> a, listD rowS -> c
+  where
+    minIndicesImpl :: RLProxy listD -> Record rowS -> Array Int
+
+instance minIndicesBase ::
+  ( Storage c a
+  , IsSymbol name
+  , RowCons name (c a) rowS' rowS
+  , RowLacks name rowS'
+  ) => MinIndices rowS (Cons name a Nil) rowD c a where
+  minIndicesImpl _ srec = indices (R.get (SProxy :: SProxy name) srec)
+
+instance minIndicesRec::
+  ( Storage c a
+  , IsSymbol name
+  , RowCons name a rowD' rowD
+  , RowCons name (c a) rowS' rowS
+  , RowLacks name rowD'
+  , MinIndices rowS listD' rowD' d b
+  ) => MinIndices rowS (Cons name a listD') rowD c a
+    where
+      minIndicesImpl _ srec = t
+        where
+          v =  (indices $ R.get (SProxy :: SProxy name) srec) :: Array Int
+          rest = minIndicesImpl (RLProxy :: RLProxy listD') srec
+          t = case compare (A.length v) (A.length rest) of
+                LT -> v
+                GT -> rest
+                EQ -> v
+
+minIndices :: forall c rowD rowS listD a
+  . RowToList rowD listD
+  => MinIndices rowS listD rowD c a
+  => CompStorage rowS
+  -> RProxy rowD
+  -> Array Int
+minIndices (CompStorage srec) _ = minIndicesImpl (RLProxy :: RLProxy listD) srec
+
 class IntersectIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
@@ -312,8 +355,5 @@ mapFn :: forall rowS rowD rowO listD m1 a1 m2 a2 m3 a3 m4 a4 listO listS
 mapFn cs f = mergeStorage (foldl fn empt indices) cs
   where
     empt = allocateStorage (RProxy :: RProxy rowS)
-    fn m x = wSm x val
-      where
-        wSm = (writeStorage m)
-        val = (applyFn cs f x) :: Record rowO
+    fn m x = writeStorage m x $ applyFn cs f x
     indices = intersectIndices cs (RProxy :: RProxy rowD)

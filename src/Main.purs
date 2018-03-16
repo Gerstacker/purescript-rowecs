@@ -53,6 +53,10 @@ uni5 = mapFn uni4 fnABtoC
 uni6 :: CS
 uni6 = mapFn uni5 fnBCtoB
 
+uni7 :: CS
+uni7 = writeStorage uni6 45 {a:3, c:47.1}
+
+
 rw = RProxy :: RProxy (c::Number, a::Int)
 
 wr1 :: CS
@@ -108,7 +112,10 @@ main = do
   log $ "\n" <> "uni4\n" <> show uni4
   log $ "\n" <> "uni5\n" <> show uni5
   log $ "\n" <> "uni6\n" <> show uni6
+  log $ "\n" <> "uni7\n" <> show uni7
 
   log $ "\n" <> "het1\n" <> show het1
 
   log $ "\n" <> "het2\n" <> show het2
+
+  log $ "\n" <> "minind(uni7)" <> show (minIndices uni7 (RProxy :: RProxy (a::Int, b::String)))
