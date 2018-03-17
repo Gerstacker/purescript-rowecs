@@ -297,15 +297,10 @@ minIndices (CompStorage srec) _ = minIndicesImpl (RLProxy :: RLProxy listD) srec
 class IntersectIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
-    intersectIndicesImpl :: RLProxy listD -> Record rowS -> Array Int
+    intersectIndicesImpl :: RLProxy listD -> Record rowS -> Array Int -> Array Int
 
-instance intersectIndicesBase ::
-  ( Storage c a
-  , IsSymbol name
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowS'
-  ) => IntersectIndices rowS (Cons name a Nil) rowD c a where
-  intersectIndicesImpl _ srec = indices (R.get (SProxy :: SProxy name) srec)
+instance intersectIndicesNil :: IntersectIndices rowS Nil () c a where
+  intersectIndicesImpl _ _ iw = iw
 
 instance intersectIndicesRec ::
   ( Storage c a
@@ -316,20 +311,23 @@ instance intersectIndicesRec ::
   , IntersectIndices rowS listD' rowD' d b
   ) => IntersectIndices rowS (Cons name a listD') rowD c a
     where
-      intersectIndicesImpl _ srec = A.filter f rest
+      intersectIndicesImpl _ srec iw = A.filter f rest
         where
           f x = member (R.get nameP srec) x
           nameP = SProxy :: SProxy name
-          rest = intersectIndicesImpl (RLProxy :: RLProxy listD') srec
+          rest = intersectIndicesImpl (RLProxy :: RLProxy listD') srec iw
 
 intersectIndices :: forall c rowD rowS listD a
   . RowToList rowD listD
   => IntersectIndices rowS listD rowD c a
+  => MinIndices rowS listD rowD c a
   => CompStorage rowS
   -> RProxy rowD
   -> Array Int
-intersectIndices (CompStorage srec) _ = intersectIndicesImpl (RLProxy :: RLProxy listD) srec
-
+intersectIndices cs@(CompStorage srec) rp = intersectIndicesImpl rlp srec minind
+  where
+    rlp = RLProxy :: RLProxy listD
+    minind = minIndices cs rp
 
 applyFn ::  forall rowS rowD rowO listD c a
   . RowToList rowD listD
@@ -351,6 +349,7 @@ mapFn :: forall rowS rowD rowO listD m1 a1 m2 a2 m3 a3 m4 a4 listO listS
   => MergeStorage listS rowS m1 a1
   => Storage m1 a1 => Storage m2 a2 => Storage m3 a3 => Storage m4 a4
   => IntersectIndices rowS listD rowD m4 a4
+  => MinIndices rowS listD rowD m4 a4
   => CompStorage rowS -> (Record rowD -> Record rowO) -> CompStorage rowS
 mapFn cs f = mergeStorage (foldl fn empt indices) cs
   where
