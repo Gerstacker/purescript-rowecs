@@ -4,9 +4,9 @@ import Data.Array as A
 import Data.Foldable (foldl)
 import Data.IntMap as IM
 import Data.Maybe (Maybe, fromJust)
-import Data.Record (insert, get, set, delete) as R
 import Data.Ord (compare)
 import Data.Ordering (Ordering(..))
+import Data.Record (insert, get, set, delete) as R
 import Partial.Unsafe (unsafePartial)
 import Prelude (($), (<>), show, class Show)
 import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), SProxy(SProxy), RProxy(RProxy))
@@ -35,6 +35,8 @@ instance storageIntMap :: Storage IM.IntMap a where
 
 newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
 
+-- Given a Record of Component containers, select one Component (via SProxy)
+-- and return the value at a given index
 read :: forall rowS name a c rowS'
   . Storage c a
   => IsSymbol name
@@ -44,7 +46,7 @@ read csrec spr ind = get v ind
   where
     v = (R.get spr csrec) :: c a
 
-
+-- Like read, but assume that value is present
 unsafeRead :: forall rowS name a c rowS'
   . IsSymbol name
   => RowCons name (c a) rowS' rowS
@@ -54,7 +56,8 @@ unsafeRead csrec spr ind = unsafePartial $ fromJust $ get v ind
   where
     v = (R.get spr csrec) :: c a
 
-
+-- Take a Record of Component containers and return a new one with
+-- a particular Component updated/inserted at given index
 write :: forall rowS name a c rowS'
   . Storage c a
   => IsSymbol name
@@ -66,6 +69,8 @@ write csrec spr ind val = stor'
     intmap' = set intmap ind val
     stor' = R.set spr intmap' csrec
 
+-- Recursive type class for traversing a RowList of Component names and types,
+-- allocating a Record of Component containers of corresponding contained types
 class AllocateStorage (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
     | listS -> c a, listS -> rowS
   where
@@ -95,6 +100,7 @@ allocateStorage :: forall listS rowS c a
   -> CompStorage rowS
 allocateStorage _ = CompStorage $ allocateStorageImpl (RLProxy :: RLProxy listS)
 
+-- Recursive type class implementation of Show for Record of containers
 class ShowStorage (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
     | listS -> c a, listS -> rowS
   where
@@ -117,11 +123,14 @@ instance showStorageCons ::
           rest = showStorageImpl (RLProxy :: RLProxy listS') delrec
           delrec = (R.delete nameP srec) :: Record rowS'
 
+-- Show instance for Record of Component containers
 instance compStorageShow ::
   (ShowStorage listS rowS c a
   , RowToList rowS listS) => Show (CompStorage rowS) where
   show (CompStorage srec)= showStorageImpl (RLProxy :: RLProxy listS) srec
 
+-- Like AllocateStorage, but assuming that same container type is used for all
+-- Component fields; still exists for largely sentimental reasons
 class AllocateStorageUniform (listD :: RowList)  (rowS :: # Type) (c :: Type -> Type) a
     | listD c -> rowS a, rowS -> c
   where
@@ -151,7 +160,10 @@ allocateStorageUniform :: forall c rowD listD a rowS
   -> CompStorage rowS
 allocateStorageUniform _ cprox = CompStorage $ allocateStorageUniformImpl (RLProxy :: RLProxy listD)  cprox
 
-
+-- Recursive TC:
+-- Given a CompStorage with many fields and a RowList of a subset of those
+-- fields, return a Record containing only the values of the specified fields
+-- at a given index. Containers of other unread fields are not traversed at all.
 class ReadStorage (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type)  a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
@@ -183,6 +195,8 @@ readStorage :: forall c rowD rowS listD a
   -> Record rowD
 readStorage (CompStorage srec) ind = readStorageImpl (RLProxy :: RLProxy listD) srec ind
 
+-- For applying a recently computed update (modifications or insertions) to an
+-- existing CompStorage
 class MergeStorage   (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
     | listS -> rowS, rowS -> a, listS -> c
   where
@@ -218,6 +232,9 @@ mergeStorage :: forall rowS listS c a
 mergeStorage (CompStorage recUpd) (CompStorage recInp) = CompStorage $ mergeStorageImpl rlp recUpd recInp
   where rlp = RLProxy :: RLProxy listS
 
+-- Take an index and a record of fields to write, update the specified slots
+-- in the containers in the specified fields. Unwritten containers are not
+-- traversed at all, just copied to output CompStorage/Record
 class WriteStorage (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD -> c a
   where
@@ -255,6 +272,9 @@ writeStorage :: forall c rowD rowS listD a
   -> CompStorage rowS
 writeStorage (CompStorage srec) ind drec = CompStorage $ writeStorageImpl (RLProxy :: RLProxy listD) srec ind drec
 
+
+-- The fields of a CompStorage can have different numbers of elements, identify
+-- the smallest and return its array of indices
 class MinIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
@@ -294,6 +314,10 @@ minIndices :: forall c rowD rowS listD a
   -> Array Int
 minIndices (CompStorage srec) _ = minIndicesImpl (RLProxy :: RLProxy listD) srec
 
+-- Use minIndices to get a least upper bound on intersection of index sets
+-- across containers, then intersect it with the index sets of specified
+-- Components
+-- Component containers in fields not specifed by rowD are not touched
 class IntersectIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
@@ -329,6 +353,9 @@ intersectIndices cs@(CompStorage srec) rp = intersectIndicesImpl rlp srec minind
     rlp = RLProxy :: RLProxy listD
     minind = minIndices cs rp
 
+-- Given a CompStorage and a function from one subset of Components to another
+-- apply the function at a given index (for one entity) and return the new
+-- values of those fields in a new Record with only those fields
 applyFn ::  forall rowS rowD rowO listD c a
   . RowToList rowD listD
   => ReadStorage rowS listD rowD c a
@@ -338,7 +365,11 @@ applyFn cs f ind = f sel
   where
     sel = readStorage cs ind :: Record rowD
 
-
+-- Take a CompStorage and a function from one subset of fields to another
+-- subset. Find (using intersectIndices) the set of all indices for which
+-- all input fields are present, map the function over that set, return
+-- a new CompStorage with those fields updated. Containers that are neither
+-- input nor output are simply copied to output CompStorage
 mapFn :: forall rowS rowD rowO listD m1 a1 m2 a2 m3 a3 m4 a4 listO listS
   . RowToList rowD listD
   => RowToList rowO listO
