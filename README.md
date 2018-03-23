@@ -27,7 +27,7 @@ Given a storage Row type like SRow, we can allocate an empty CompStorage with al
 
 ~~~
 het0 :: CS
-het0 = allocateStorage (RProxy :: RProxy SRow)
+het0 = allocateStorage
 ~~~
 
 het0 is a CompStorage, which is a Record of containers of Components.

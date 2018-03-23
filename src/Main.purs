@@ -68,7 +68,7 @@ rwr1B = readStorage wr1 99 :: Record (b::String)
 rwr1Both = readStorage wr1 99 :: Record (a::Int, b::String)
 
 het0 :: CS
-het0 = allocateStorage (RProxy :: RProxy SRow)
+het0 = allocateStorage
 het1 :: CS
 het1 = writeStorage het0 55 { c:2.3 }
 het2 = writeStorage het1 55 { c:5.6 }

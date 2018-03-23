@@ -96,9 +96,8 @@ allocateStorage :: forall listS rowS c a
   . RowToList rowS listS
   => AllocateStorage listS rowS c a
   => Storage c a
-  => RProxy rowS
-  -> CompStorage rowS
-allocateStorage _ = CompStorage $ allocateStorageImpl (RLProxy :: RLProxy listS)
+  => CompStorage rowS
+allocateStorage = CompStorage $ allocateStorageImpl (RLProxy :: RLProxy listS)
 
 -- Recursive type class implementation of Show for Record of containers
 class ShowStorage (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
@@ -384,6 +383,6 @@ mapFn :: forall rowS rowD rowO listD m1 a1 m2 a2 m3 a3 m4 a4 listO listS
   => CompStorage rowS -> (Record rowD -> Record rowO) -> CompStorage rowS
 mapFn cs f = mergeStorage (foldl fn empt indices) cs
   where
-    empt = allocateStorage (RProxy :: RProxy rowS)
+    empt = allocateStorage
     fn m x = writeStorage m x $ applyFn cs f x
     indices = intersectIndices cs (RProxy :: RProxy rowD)
