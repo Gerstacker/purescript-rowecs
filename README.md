@@ -14,7 +14,7 @@ The top-level CompStorage type is a newtype wrapper around a Record type.
 newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
 ~~~
 
-rowS is a Row type specifying the names and types of containers of all the Components that an entity might possibly have in this universe. E.g.
+rowS is a Row type specifying the names and types of containers of all the Components that an entity might possibly have in this universe.
 
 ~~~
 type SRow = (a::IntMap Int, b::IntMap String, c::IntMap Number)
@@ -47,7 +47,7 @@ Inside writeStorage is the (type-level, compile-time) logic to look at the field
 Imagine you have a CompStorage representing a number of Entities, each of which has some subset of the Components known to the CompStorage. For example there are mobile Entities that have both Position and Velocity and stationary Entities that have only Position. You'd like to apply kinematic updates to only the mobile ones without having to bother with the stationary. Implement a function of the right type:
 
 ~~~
-kinematics :: Record {position::Vec3, velocity::Vec3} -> Record {position::Vec3}
+kinematics :: Record {position::Vec3, velocity::Vec3, acceleration::Vec3} -> Record {position::Vec3, velocity::Vec3}
 ~~~
 
 and hand it to mapFn:
@@ -56,7 +56,7 @@ and hand it to mapFn:
 newCS = mapFn oldCS kinematics
 ~~~
 
-and you have a new CompStorage with the Positions updated for only those entities that had both a Position and a Velocity in oldCS. Other entities (e.g. stationary building that have no Velocity) are simply copied from old to new. Components not involved in the computation have their containers simply copied from old to new. If you make a type error like getting the type of a field wrong the compiler will let you know, though usually quite opaquely.
+and you have a new CompStorage with the Positions updated for only those entities that had both a Position and a Velocity in oldCS. Other entities (e.g. stationary buildings that have no Velocity) are simply copied from old to new. Components not involved in the computation have their containers simply copied from old to new. If you make a type error like getting the type of a field wrong the compiler will let you know, though usually quite opaquely.
 
 ## Future directions
 It seems like it should be straightforward to implement composition of two Systems into a single new System. For example, kinematics and bounceOffWalls may take pretty much the same inputs and modify the same Components and would most efficiently be run in one call to mapFn.
