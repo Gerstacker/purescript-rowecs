@@ -59,6 +59,13 @@ newCS = mapFn oldCS kinematics
 and you have a new CompStorage with the Positions updated for only those entities that had both a Position and a Velocity in oldCS. Other entities (e.g. stationary buildings that have no Velocity) are simply copied from old to new. Components not involved in the computation have their containers simply copied from old to new. If you make a type error like getting the type of a field wrong the compiler will let you know, though usually quite opaquely.
 
 ## Future directions
+
+### Composition of Systems
 It seems like it should be straightforward to implement composition of two Systems into a single new System. For example, kinematics and bounceOffWalls may take pretty much the same inputs and modify the same Components and would most efficiently be run in one call to mapFn.
 
-Mutable-friendly containers (maybe hash-based) may be more efficient in many situations.
+### Mutability/ST support
+Mutable-friendly containers (maybe hash-based) may be more efficient in many situations. One time step would consist of an ST session starting with a frozen/pure CompStorage from the last time step and running a number of mapFn's on a mutable working copy to be frozen and used as input to the next time step.
+
+### Can FRP and ECS co-exist?
+At first glance they both seem to demand control over the main loop, but maybe there's a hybrid that makes some sense. Consider a CompStorage field that behaves like a memory-mapped register of a hardware device. Writes to this field don't store component data per se, but generate events to be consumed elsewhere. Likewise, a field may store a queue of pending events destined for a set of entities. mapFn with an appropriate System would straightforwardly select and process those entities that have pending events.
+I'm experimenting with something like this to manage deleting entities. mapFn is called with a predicate (like "entity leaves playing field") that may mark the entity as to-be-dropped.
