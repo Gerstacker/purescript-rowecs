@@ -15,22 +15,32 @@ import Type.Row (Cons, Nil, kind RowList)
 
 class Storage (c :: Type -> Type) a where
   allocate :: c a
+
+class (Storage c a) <= StorageR (c :: Type -> Type) a where
   get :: c a -> Int -> Maybe a
-  set :: c a -> Int -> a -> c a
-  del :: c a -> Int -> c a
   indices :: c a -> Array Int
   size :: c a -> Int
   member :: c a -> Int -> Boolean
+
+class (Storage c a) <= StorageW (c :: Type -> Type) a where
+  set :: c a -> Int -> a -> c a
+  del :: c a -> Int -> c a
   merge :: c a -> c a -> c a
+
+class (StorageR c a, StorageW c a) <= StorageRW (c :: Type -> Type) a
 
 instance storageIntMap :: Storage IM.IntMap a where
   allocate = IM.empty
+
+instance storageRIntMap :: StorageR IM.IntMap a where
   get im ind = IM.lookup ind im
-  set im ind val = IM.insert ind val im
-  del im ind = IM.delete ind im
   indices im = IM.indices im
   size im = IM.size im
   member im ind = IM.member ind im
+
+instance storageWIntMap :: StorageW IM.IntMap a where
+  set im ind val = IM.insert ind val im
+  del im ind = IM.delete ind im
   merge = IM.unionRight
 
 newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
@@ -38,7 +48,7 @@ newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
 -- Given a Record of Component containers, select one Component (via SProxy)
 -- and return the value at a given index
 read :: forall rowS name a c rowS'
-  . Storage c a
+  . StorageR c a
   => IsSymbol name
   => RowCons name (c a) rowS' rowS
   => Record rowS -> SProxy name -> Int -> Maybe a
@@ -50,7 +60,7 @@ read csrec spr ind = get v ind
 unsafeRead :: forall rowS name a c rowS'
   . IsSymbol name
   => RowCons name (c a) rowS' rowS
-  => Storage c a
+  => StorageR c a
   => Record rowS -> SProxy name -> Int -> a
 unsafeRead csrec spr ind = unsafePartial $ fromJust $ get v ind
   where
@@ -59,7 +69,7 @@ unsafeRead csrec spr ind = unsafePartial $ fromJust $ get v ind
 -- Take a Record of Component containers and return a new one with
 -- a particular Component updated/inserted at given index
 write :: forall rowS name a c rowS'
-  . Storage c a
+  . StorageW c a
   => IsSymbol name
   => RowCons name (c a) rowS' rowS
   => Record rowS -> SProxy name -> Int -> a -> Record rowS
@@ -173,7 +183,7 @@ instance readStorageNil :: ReadStorage rowS Nil () c a where
 
 instance readStorageCons ::
   ( IsSymbol name
-  , Storage c a
+  , StorageR c a
   , RowCons name a rowD' rowD
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowD'
@@ -206,7 +216,7 @@ instance mergeStorageNil :: MergeStorage Nil () c a where
 
 instance mergeStorageCons ::
   ( IsSymbol name
-  , Storage c a
+  , StorageW c a
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowS'
   , MergeStorage listS' rowS' d b
@@ -245,7 +255,7 @@ instance writeStorageNil :: WriteStorage rowS Nil () c a where
 
 instance writeStorageCons ::
   ( IsSymbol name
-  , Storage c a
+  , StorageW c a
   , RowCons name a rowD' rowD
   , RowLacks name rowD'
   , RowCons name (c a) rowS' rowS
@@ -280,7 +290,7 @@ class MinIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type
     minIndicesImpl :: RLProxy listD -> Record rowS -> Array Int
 
 instance minIndicesBase ::
-  ( Storage c a
+  ( StorageR c a
   , IsSymbol name
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowS'
@@ -288,7 +298,7 @@ instance minIndicesBase ::
   minIndicesImpl _ srec = indices (R.get (SProxy :: SProxy name) srec)
 
 instance minIndicesRec::
-  ( Storage c a
+  ( StorageR c a
   , IsSymbol name
   , RowCons name a rowD' rowD
   , RowCons name (c a) rowS' rowS
@@ -326,7 +336,7 @@ instance intersectIndicesNil :: IntersectIndices rowS Nil () c a where
   intersectIndicesImpl _ _ iw = iw
 
 instance intersectIndicesRec ::
-  ( Storage c a
+  ( StorageR c a
   , IsSymbol name
   , RowCons name a rowD' rowD
   , RowCons name (c a) rowS' rowS
