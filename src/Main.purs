@@ -10,6 +10,7 @@ import Data.Tuple (Tuple(Tuple))
 import Prelude (Unit, discard, show, ($), (<>))
 import Type.Prelude (RProxy(RProxy), SProxy(SProxy))
 import Data.Semiring ((+), (*))
+import Data.Ord ((<))
 import Type.Proxy (Proxy2(Proxy2))
 import Data.String (length)
 import Data.Int (toNumber)
@@ -56,6 +57,11 @@ uni6 = mapFn uni5 fnBCtoB
 uni7 :: CS
 uni7 = writeStorage uni6 45 {a:3, c:47.1}
 
+fdr :: Record (c::Number) -> Boolean
+fdr r = r.c < 10.0
+
+uni8 :: CS
+uni8 = dropPred uni7 fdr
 
 rw = RProxy :: RProxy (c::Number, a::Int)
 
@@ -113,6 +119,7 @@ main = do
   log $ "\n" <> "uni5\n" <> show uni5
   log $ "\n" <> "uni6\n" <> show uni6
   log $ "\n" <> "uni7\n" <> show uni7
+  log $ "\n" <> "uni8\n" <> show uni8
 
   log $ "\n" <> "het1\n" <> show het1
 

@@ -1,5 +1,6 @@
 module ECS where
 
+import Data.Array (filter)
 import Data.Array as A
 import Data.Foldable (foldl)
 import Data.IntMap as IM
@@ -42,6 +43,8 @@ instance storageWIntMap :: StorageW IM.IntMap a where
   set im ind val = IM.insert ind val im
   del im ind = IM.delete ind im
   merge = IM.unionRight
+
+instance storageRWIntMap :: StorageRW IM.IntMap a
 
 newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
 
@@ -374,6 +377,18 @@ applyFn cs f ind = f sel
   where
     sel = readStorage cs ind :: Record rowD
 
+applyFnScalar :: forall rowS rowD t listD c a
+  . RowToList rowD listD
+  => ReadStorage rowS listD rowD c a
+  => StorageR c a
+  => CompStorage rowS -> (Record rowD -> t) -> Int -> t
+applyFnScalar cs f ind = (fr sel).x
+  where
+    sel = readStorage cs ind :: Record rowD
+    fr :: Record rowD -> Record ( x :: t )
+    fr g = { x : f g }
+
+
 -- Take a CompStorage and a function from one subset of fields to another
 -- subset. Find (using intersectIndices) the set of all indices for which
 -- all input fields are present, map the function over that set, return
@@ -396,3 +411,42 @@ mapFn cs f = mergeStorage (foldl fn empt indices) cs
     empt = allocateStorage
     fn m x = writeStorage m x $ applyFn cs f x
     indices = intersectIndices cs (RProxy :: RProxy rowD)
+
+class DropPred (rowS :: # Type) ( listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
+    | listD -> rowD, rowD -> a, listD rowS -> c
+  where
+    dropPredImpl :: RLProxy listD -> Record rowS -> Array Int -> Record rowS
+
+instance dropPredNil :: DropPred rowS Nil () c a where
+  dropPredImpl _ srec _ = srec
+
+instance dropPredRec ::
+   ( StorageRW c a
+   , IsSymbol name
+   , RowCons name a rowD' rowD
+   , RowCons name (c a) rowS' rowS
+   , DropPred rowS listD' rowD' d b
+   ) => DropPred rowS (Cons name a listD') rowD c a
+     where
+       dropPredImpl _ srec ind = R.set nameP nstr rest
+         where
+           nameP = SProxy :: SProxy name
+           str = (R.get nameP srec) :: c a
+           nstr = foldl fn str ind
+           fn :: c a -> Int -> c a
+           fn = del
+           rest = dropPredImpl (RLProxy :: RLProxy listD') srec ind
+
+
+dropPred :: forall rowS rowD listD m1 a1 m2 a2 m3 a3
+  . RowToList rowD listD
+  => IntersectIndices rowS listD rowD m1 a1
+  => MinIndices rowS listD rowD m1 a1
+  => ReadStorage rowS listD rowD m3 a3
+  => StorageRW m1 a1 => StorageR m3 a3
+  => DropPred rowS listD rowD m1 a1
+  => CompStorage rowS -> (Record rowD -> Boolean) -> CompStorage rowS
+dropPred cs@(CompStorage srec) p =  CompStorage $ dropPredImpl (RLProxy :: RLProxy listD) srec flt
+    where
+      ind = intersectIndices cs (RProxy :: RProxy rowD)
+      flt = filter (applyFnScalar cs p) ind
