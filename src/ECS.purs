@@ -10,8 +10,8 @@ import Data.Ordering (Ordering(..))
 import Data.Record (insert, get, set, delete) as R
 import Partial.Unsafe (unsafePartial)
 import Prelude (($), (<>), show, class Show)
-import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), SProxy(SProxy), RProxy(RProxy))
-import Type.Proxy (Proxy2(Proxy2))
+import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), RProxy(RProxy), SProxy(SProxy), reflectSymbol)
+import Type.Proxy (Proxy(Proxy), Proxy2(Proxy2))
 import Type.Row (Cons, Nil, kind RowList)
 
 class Storage (c :: Type -> Type) a where
@@ -129,7 +129,7 @@ instance showStorageCons ::
   , RowLacks name rowS'
   , ShowStorage listS' rowS' d b
   ) => ShowStorage (Cons name (c a) listS') rowS c a where
-      showStorageImpl _ srec = show (R.get nameP srec) <> "\n" <> rest
+      showStorageImpl _ srec = show (reflectSymbol nameP) <> " : "<> show (R.get nameP srec) <> "\n" <> rest
         where
           nameP = SProxy :: SProxy name
           rest = showStorageImpl (RLProxy :: RLProxy listS') delrec
