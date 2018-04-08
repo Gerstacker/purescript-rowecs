@@ -14,7 +14,7 @@ import Data.Ord ((<))
 import Type.Proxy (Proxy2(Proxy2))
 import Data.String (length)
 import Data.Int (toNumber)
-
+import Data.Maybe (Maybe(Nothing,Just))
 
 u = RProxy :: RProxy (a::Int, b::String, c::Number)
 
@@ -62,6 +62,9 @@ fdr r = r.c < 10.0
 
 uni8 :: CS
 uni8 = dropPred uni7 fdr
+
+uni9 :: CS
+uni9 = writeMaybe uni8 89 {a : Just 96, b : Nothing, c : Nothing}
 
 rw = RProxy :: RProxy (c::Number, a::Int)
 
@@ -120,6 +123,7 @@ main = do
   log $ "\n" <> "uni6\n" <> show uni6
   log $ "\n" <> "uni7\n" <> show uni7
   log $ "\n" <> "uni8\n" <> show uni8
+  log $ "\n" <> "uni9\n" <> show uni9
 
   log $ "\n" <> "het1\n" <> show het1
 

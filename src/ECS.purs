@@ -4,14 +4,14 @@ import Data.Array (filter)
 import Data.Array as A
 import Data.Foldable (foldl)
 import Data.IntMap as IM
-import Data.Maybe (Maybe, fromJust)
+import Data.Maybe (Maybe(Nothing,Just), fromJust)
 import Data.Ord (compare)
 import Data.Ordering (Ordering(..))
 import Data.Record (insert, get, set, delete) as R
 import Partial.Unsafe (unsafePartial)
 import Prelude (($), (<>), show, class Show)
 import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), RProxy(RProxy), SProxy(SProxy), reflectSymbol)
-import Type.Proxy (Proxy(Proxy), Proxy2(Proxy2))
+import Type.Proxy (Proxy2(Proxy2))
 import Type.Row (Cons, Nil, kind RowList)
 
 class Storage (c :: Type -> Type) a where
@@ -171,6 +171,12 @@ allocateStorageUniform :: forall c rowD listD a rowS
   -> Proxy2 c
   -> CompStorage rowS
 allocateStorageUniform _ cprox = CompStorage $ allocateStorageUniformImpl (RLProxy :: RLProxy listD)  cprox
+
+
+
+
+
+
 
 -- Recursive TC:
 -- Given a CompStorage with many fields and a RowList of a subset of those
@@ -412,6 +418,11 @@ mapFn cs f = mergeStorage (foldl fn empt indices) cs
     fn m x = writeStorage m x $ applyFn cs f x
     indices = intersectIndices cs (RProxy :: RProxy rowD)
 
+
+-- take a predicate from some Record type to Bool, evaluate it on all entities
+-- that have the input attributes, remove ALL fields for entities that satisfied
+-- predicate
+
 class DropPred (rowS :: # Type) ( listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
@@ -450,3 +461,46 @@ dropPred cs@(CompStorage srec) p =  CompStorage $ dropPredImpl (RLProxy :: RLPro
     where
       ind = intersectIndices cs (RProxy :: RProxy rowD)
       flt = filter (applyFnScalar cs p) ind
+
+-- like WriteStorage but each field of the written record is wrapped in Maybe
+-- value of Nothing means don't modify the corresponding field of the storage
+
+
+class WriteMaybe (rowS :: # Type) (listM :: RowList) (rowM :: # Type) (c :: Type -> Type) a
+    | listM -> rowM, rowM -> a, listM -> c a
+  where
+    writeMaybeImpl :: RLProxy listM -> Record rowS -> Int -> Record rowM -> Record rowS
+
+instance writeMaybeNil :: WriteMaybe rowS Nil () c a where
+    writeMaybeImpl _ srec _ _ = srec
+
+instance writeMaybeCons ::
+  ( IsSymbol name
+  , StorageW c a
+  , RowCons name (Maybe a) rowM' rowM
+  , RowLacks name rowM'
+  , RowCons name (c a) rowS' rowS
+  , RowLacks name rowS'
+  , WriteMaybe rowS listM' rowM' d b
+  ) => WriteMaybe rowS (Cons name (Maybe a) listM') rowM c a
+    where
+      writeMaybeImpl _ srec ind mrec = R.set nameP nstr rest
+        where
+          nameP = SProxy :: SProxy name
+          str = (R.get nameP srec) :: c a
+          wrmay = R.get nameP mrec
+          nstr =
+            case wrmay of
+              Nothing -> str
+              Just d -> set str ind d
+          delrec = (R.delete nameP mrec) :: Record rowM'
+          rest = writeMaybeImpl (RLProxy :: RLProxy listM') srec ind delrec
+
+writeMaybe :: forall c rowM rowS listM a
+  . RowToList rowM listM
+  => WriteMaybe rowS listM rowM c a
+  => CompStorage rowS
+  -> Int
+  -> Record rowM
+  -> CompStorage rowS
+writeMaybe (CompStorage srec) ind mrec = CompStorage $ writeMaybeImpl (RLProxy :: RLProxy listM) srec ind mrec
