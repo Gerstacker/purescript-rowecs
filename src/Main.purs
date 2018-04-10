@@ -5,10 +5,9 @@ import ECS
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, logShow, log)
 import Data.IntMap (IntMap, fromAssocArray)
-import Data.Record.Extra (type (:::))
 import Data.Tuple (Tuple(Tuple))
 import Prelude (Unit, discard, show, ($), (<>))
-import Type.Prelude (RProxy(RProxy), SProxy(SProxy))
+import Type.Prelude (RProxy(RProxy))
 import Data.Semiring ((+), (*))
 import Data.Ord ((<))
 import Type.Proxy (Proxy2(Proxy2))
@@ -80,6 +79,7 @@ het0 :: CS
 het0 = allocateStorage
 het1 :: CS
 het1 = writeStorage het0 55 { c:2.3 }
+het2 :: CS
 het2 = writeStorage het1 55 { c:5.6 }
 --het1 = write het0 (SProxy::SProxy "c") 55 2.3
 
@@ -100,7 +100,7 @@ fn1 r = { b : (show r.a) <> r.b }
 
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
-  logShow "Empty storage b::String"
+  logShow "Empty storage { a::Int, b::String c::Number}"
   logShow uni0
   logShow "1-element assoc array for c::Number"
   logShow uni1

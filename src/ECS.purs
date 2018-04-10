@@ -4,18 +4,20 @@ import Data.Array (filter)
 import Data.Array as A
 import Data.Foldable (foldl)
 import Data.IntMap as IM
-import Data.Maybe (Maybe(Nothing,Just), fromJust)
+import Data.Maybe (Maybe(Nothing, Just), fromJust)
 import Data.Ord (compare)
 import Data.Ordering (Ordering(..))
 import Data.Record (insert, get, set, delete) as R
+import Data.Tuple (Tuple(..), fst, snd)
 import Partial.Unsafe (unsafePartial)
-import Prelude (($), (<>), show, class Show)
+import Prelude (class Show, Unit, unit, show, ($), (<>))
 import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), RProxy(RProxy), SProxy(SProxy), reflectSymbol)
 import Type.Proxy (Proxy2(Proxy2))
 import Type.Row (Cons, Nil, kind RowList)
 
 class Storage (c :: Type -> Type) a where
   allocate :: c a
+
 
 class (Storage c a) <= StorageR (c :: Type -> Type) a where
   get :: c a -> Int -> Maybe a
@@ -296,7 +298,7 @@ writeStorage (CompStorage srec) ind drec = CompStorage $ writeStorageImpl (RLPro
 class MinIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
     | listD -> rowD, rowD -> a, listD rowS -> c
   where
-    minIndicesImpl :: RLProxy listD -> Record rowS -> Array Int
+    minIndicesImpl :: RLProxy listD -> Record rowS -> Tuple Int (Unit -> Array Int)
 
 instance minIndicesBase ::
   ( StorageR c a
@@ -304,7 +306,11 @@ instance minIndicesBase ::
   , RowCons name (c a) rowS' rowS
   , RowLacks name rowS'
   ) => MinIndices rowS (Cons name a Nil) rowD c a where
-  minIndicesImpl _ srec = indices (R.get (SProxy :: SProxy name) srec)
+  minIndicesImpl _ srec = Tuple sz ind
+    where
+      sz = size str
+      ind = \_ -> indices str
+      str = (R.get (SProxy :: SProxy name) srec)
 
 instance minIndicesRec::
   ( StorageR c a
@@ -317,12 +323,12 @@ instance minIndicesRec::
     where
       minIndicesImpl _ srec = t
         where
-          v =  (indices $ R.get (SProxy :: SProxy name) srec) :: Array Int
+          str =  (R.get (SProxy :: SProxy name) srec)
           rest = minIndicesImpl (RLProxy :: RLProxy listD') srec
-          t = case compare (A.length v) (A.length rest) of
-                LT -> v
+          t = case compare (size str) (fst rest) of
+                LT -> Tuple (size str) (\_ -> indices str)
                 GT -> rest
-                EQ -> v
+                EQ -> rest
 
 minIndices :: forall c rowD rowS listD a
   . RowToList rowD listD
@@ -330,7 +336,10 @@ minIndices :: forall c rowD rowS listD a
   => CompStorage rowS
   -> RProxy rowD
   -> Array Int
-minIndices (CompStorage srec) _ = minIndicesImpl (RLProxy :: RLProxy listD) srec
+minIndices (CompStorage srec) _ = indfun unit
+  where
+    indfun = snd $ minIndicesImpl (RLProxy :: RLProxy listD) srec
+
 
 -- Use minIndices to get a least upper bound on intersection of index sets
 -- across containers, then intersect it with the index sets of specified

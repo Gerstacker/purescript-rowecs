@@ -15,7 +15,8 @@
     "purescript-arrays": "^4.2.2",
     "purescript-foldable-traversable": "^3.7.1",
     "purescript-strings": "^3.5.0",
-    "purescript-integers": "^3.2.0"
+    "purescript-integers": "^3.2.0",
+    "purescript-debug": "^3.0.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0"
