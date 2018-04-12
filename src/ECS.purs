@@ -14,6 +14,7 @@ import Prelude (class Show, Unit, unit, show, ($), (<>))
 import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), RProxy(RProxy), SProxy(SProxy), reflectSymbol)
 import Type.Proxy (Proxy2(Proxy2))
 import Type.Row (Cons, Nil, kind RowList)
+import Unsafe.Coerce (unsafeCoerce)
 
 class Storage (c :: Type -> Type) a where
   allocate :: c a
@@ -300,17 +301,8 @@ class MinIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type
   where
     minIndicesImpl :: RLProxy listD -> Record rowS -> Tuple Int (Unit -> Array Int)
 
-instance minIndicesBase ::
-  ( StorageR c a
-  , IsSymbol name
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowS'
-  ) => MinIndices rowS (Cons name a Nil) rowD c a where
-  minIndicesImpl _ srec = Tuple sz ind
-    where
-      sz = size str
-      ind = \_ -> indices str
-      str = (R.get (SProxy :: SProxy name) srec)
+instance minIndicesNil :: MinIndices rowS Nil () c a where
+    minIndicesImpl _ _ = Tuple 1000000000 (unsafeCoerce unit)
 
 instance minIndicesRec::
   ( StorageR c a
