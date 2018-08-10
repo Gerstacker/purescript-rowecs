@@ -451,7 +451,7 @@ instance dropPredRec ::
            rest = dropPredImpl (RLProxy :: RLProxy listD') srec ind
 
 
-dropPred :: forall rowS rowD listD m1 a1 m2 a2 m3 a3
+dropPred :: forall rowS rowD listD m1 a1 m3 a3
   . RowToList rowD listD
   => IntersectIndices rowS listD rowD m1 a1
   => MinIndices rowS listD rowD m1 a1

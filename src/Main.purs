@@ -98,7 +98,7 @@ fn1 :: Record (a :: Int, b :: String) -> Record (b :: String)
 fn1 r = { b : (show r.a) <> r.b }
 
 
-main :: forall e. Effect Unit
+main :: Effect Unit
 main = do
   logShow "Empty storage { a::Int, b::String c::Number}"
   logShow uni0
