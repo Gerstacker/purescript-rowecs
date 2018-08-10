@@ -7,11 +7,12 @@ import Data.IntMap as IM
 import Data.Maybe (Maybe(Nothing, Just), fromJust)
 import Data.Ord (compare)
 import Data.Ordering (Ordering(..))
-import Data.Record (insert, get, set, delete) as R
+import Record (insert, get, set, delete) as R
 import Data.Tuple (Tuple(..), fst, snd)
 import Partial.Unsafe (unsafePartial)
 import Prelude (class Show, Unit, unit, show, ($), (<>))
-import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, RLProxy(RLProxy), RProxy(RProxy), SProxy(SProxy), reflectSymbol)
+import Prim.Row as Row
+import Type.Prelude (class IsSymbol, class RowToList, RLProxy(RLProxy), RProxy(RProxy), SProxy(SProxy), reflectSymbol)
 import Type.Proxy (Proxy2(Proxy2))
 import Type.Row (Cons, Nil, kind RowList)
 import Unsafe.Coerce (unsafeCoerce)
@@ -56,7 +57,7 @@ newtype CompStorage (rowS  :: # Type) = CompStorage (Record rowS)
 read :: forall rowS name a c rowS'
   . StorageR c a
   => IsSymbol name
-  => RowCons name (c a) rowS' rowS
+  => Row.Cons name (c a) rowS' rowS
   => Record rowS -> SProxy name -> Int -> Maybe a
 read csrec spr ind = get v ind
   where
@@ -65,7 +66,7 @@ read csrec spr ind = get v ind
 -- Like read, but assume that value is present
 unsafeRead :: forall rowS name a c rowS'
   . IsSymbol name
-  => RowCons name (c a) rowS' rowS
+  => Row.Cons name (c a) rowS' rowS
   => StorageR c a
   => Record rowS -> SProxy name -> Int -> a
 unsafeRead csrec spr ind = unsafePartial $ fromJust $ get v ind
@@ -77,7 +78,7 @@ unsafeRead csrec spr ind = unsafePartial $ fromJust $ get v ind
 write :: forall rowS name a c rowS'
   . StorageW c a
   => IsSymbol name
-  => RowCons name (c a) rowS' rowS
+  => Row.Cons name (c a) rowS' rowS
   => Record rowS -> SProxy name -> Int -> a -> Record rowS
 write csrec spr ind val = stor'
   where
@@ -98,8 +99,8 @@ instance allocateStorageNil :: AllocateStorage Nil () c a where
 instance allocateStorageCons ::
   ( IsSymbol name
   , Storage c a
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowS'
+  , Row.Cons name (c a) rowS' rowS
+  , Row.Lacks name rowS'
   , AllocateStorage listS' rowS' d b
   ) => AllocateStorage (Cons name (c a) listS') rowS c a
     where
@@ -128,8 +129,8 @@ instance showStorageCons ::
   ( IsSymbol name
   , Storage c a
   , Show (c a)
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowS'
+  , Row.Cons name (c a) rowS' rowS
+  , Row.Lacks name rowS'
   , ShowStorage listS' rowS' d b
   ) => ShowStorage (Cons name (c a) listS') rowS c a where
       showStorageImpl _ srec = show (reflectSymbol nameP) <> " : "<> show (R.get nameP srec) <> "\n" <> rest
@@ -157,8 +158,8 @@ instance allocateStorageUniformNil :: AllocateStorageUniform Nil () c a where
 instance allocateStorageUniformCons ::
   ( IsSymbol name
   , Storage c a
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowS'
+  , Row.Cons name (c a) rowS' rowS
+  , Row.Lacks name rowS'
   , AllocateStorageUniform listD' rowS' c b
   ) => AllocateStorageUniform (Cons name a listD') rowS c a where
   allocateStorageUniformImpl _ _ = R.insert nameP allocate rest
@@ -196,9 +197,9 @@ instance readStorageNil :: ReadStorage rowS Nil () c a where
 instance readStorageCons ::
   ( IsSymbol name
   , StorageR c a
-  , RowCons name a rowD' rowD
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowD'
+  , Row.Cons name a rowD' rowD
+  , Row.Cons name (c a) rowS' rowS
+  , Row.Lacks name rowD'
   , ReadStorage rowS listD' rowD' d b
   ) => ReadStorage rowS (Cons name a listD') rowD c a
     where
@@ -229,8 +230,8 @@ instance mergeStorageNil :: MergeStorage Nil () c a where
 instance mergeStorageCons ::
   ( IsSymbol name
   , StorageW c a
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowS'
+  , Row.Cons name (c a) rowS' rowS
+  , Row.Lacks name rowS'
   , MergeStorage listS' rowS' d b
   ) => MergeStorage (Cons name (c a) listS') rowS c a
     where
@@ -268,10 +269,10 @@ instance writeStorageNil :: WriteStorage rowS Nil () c a where
 instance writeStorageCons ::
   ( IsSymbol name
   , StorageW c a
-  , RowCons name a rowD' rowD
-  , RowLacks name rowD'
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowS'
+  , Row.Cons name a rowD' rowD
+  , Row.Lacks name rowD'
+  , Row.Cons name (c a) rowS' rowS
+  , Row.Lacks name rowS'
   , WriteStorage rowS listD' rowD' d b
   ) => WriteStorage rowS (Cons name a listD') rowD c a
     where
@@ -307,9 +308,9 @@ instance minIndicesNil :: MinIndices rowS Nil () c a where
 instance minIndicesRec::
   ( StorageR c a
   , IsSymbol name
-  , RowCons name a rowD' rowD
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowD'
+  , Row.Cons name a rowD' rowD
+  , Row.Cons name (c a) rowS' rowS
+  , Row.Lacks name rowD'
   , MinIndices rowS listD' rowD' d b
   ) => MinIndices rowS (Cons name a listD') rowD c a
     where
@@ -348,9 +349,9 @@ instance intersectIndicesNil :: IntersectIndices rowS Nil () c a where
 instance intersectIndicesRec ::
   ( StorageR c a
   , IsSymbol name
-  , RowCons name a rowD' rowD
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowD'
+  , Row.Cons name a rowD' rowD
+  , Row.Cons name (c a) rowS' rowS
+  , Row.Lacks name rowD'
   , IntersectIndices rowS listD' rowD' d b
   ) => IntersectIndices rowS (Cons name a listD') rowD c a
     where
@@ -435,8 +436,8 @@ instance dropPredNil :: DropPred rowS Nil () c a where
 instance dropPredRec ::
    ( StorageRW c a
    , IsSymbol name
-   , RowCons name a rowD' rowD
-   , RowCons name (c a) rowS' rowS
+   , Row.Cons name a rowD' rowD
+   , Row.Cons name (c a) rowS' rowS
    , DropPred rowS listD' rowD' d b
    ) => DropPred rowS (Cons name a listD') rowD c a
      where
@@ -478,10 +479,10 @@ instance writeMaybeNil :: WriteMaybe rowS Nil () c a where
 instance writeMaybeCons ::
   ( IsSymbol name
   , StorageW c a
-  , RowCons name (Maybe a) rowM' rowM
-  , RowLacks name rowM'
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowS'
+  , Row.Cons name (Maybe a) rowM' rowM
+  , Row.Lacks name rowM'
+  , Row.Cons name (c a) rowS' rowS
+  , Row.Lacks name rowS'
   , WriteMaybe rowS listM' rowM' d b
   ) => WriteMaybe rowS (Cons name (Maybe a) listM') rowM c a
     where
