@@ -451,12 +451,12 @@ instance dropPredRec ::
            rest = dropPredImpl (RLProxy :: RLProxy listD') srec ind
 
 
-dropPred :: forall rowS rowD listD m1 a1 m3 a3
+dropPred :: forall rowS rowD listD m1 a1 m2 a2
   . RowToList rowD listD
   => IntersectIndices rowS listD rowD m1 a1
   => MinIndices rowS listD rowD m1 a1
-  => ReadStorage rowS listD rowD m3 a3
-  => StorageRW m1 a1 => StorageR m3 a3
+  => ReadStorage rowS listD rowD m2 a2
+  => StorageRW m1 a1 => StorageR m2 a2
   => DropPred rowS listD rowD m1 a1
   => CompStorage rowS -> (Record rowD -> Boolean) -> CompStorage rowS
 dropPred cs@(CompStorage srec) p =  CompStorage $ dropPredImpl (RLProxy :: RLProxy listD) srec flt
