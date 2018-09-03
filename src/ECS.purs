@@ -297,15 +297,14 @@ writeStorage (CompStorage srec) ind drec = CompStorage $ writeStorageImpl (RLPro
 -- The fields of a CompStorage can have different numbers of elements, identify
 -- the smallest and return its array of indices
 class MinIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
-    | listD -> rowD, rowD -> a, listD rowS -> c
+    | listD -> rowD, listD -> a, listD rowS -> c
   where
     minIndicesImpl :: RLProxy listD -> Record rowS -> Tuple Int (Unit -> Array Int)
 
 instance minIndicesBase ::
   ( StorageR c a
   , IsSymbol name
-  , RowCons name (c a) rowS' rowS
-  , RowLacks name rowS'
+  , Row.Cons name (c a) rowS' rowS
   ) => MinIndices rowS (Cons name a Nil) rowD c a where
   minIndicesImpl _ srec = Tuple sz ind
     where
@@ -313,7 +312,7 @@ instance minIndicesBase ::
       ind = \_ -> indices str
       str = (R.get (SProxy :: SProxy name) srec)
 
-instance minIndicesRec::
+else instance minIndicesRec::
   ( StorageR c a
   , IsSymbol name
   , Row.Cons name a rowD' rowD
