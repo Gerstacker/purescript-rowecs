@@ -88,7 +88,7 @@ write csrec spr ind val = stor'
 -- Recursive type class for traversing a RowList of Component names and types,
 -- allocating a Record of Component containers of corresponding contained types
 class AllocateStorage (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
-    | listS -> c a, listS -> rowS
+    | listS -> c a rowS
   where
     allocateStorageImpl :: RLProxy listS -> Record rowS
 
@@ -117,7 +117,7 @@ allocateStorage = CompStorage $ allocateStorageImpl (RLProxy :: RLProxy listS)
 
 -- Recursive type class implementation of Show for Record of containers
 class ShowStorage (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
-    | listS -> c a, listS -> rowS
+    | listS -> c a rowS
   where
     showStorageImpl :: RLProxy listS -> Record rowS -> String
 
@@ -147,7 +147,7 @@ instance compStorageShow ::
 -- Like AllocateStorage, but assuming that same container type is used for all
 -- Component fields; still exists for largely sentimental reasons
 class AllocateStorageUniform (listD :: RowList)  (rowS :: # Type) (c :: Type -> Type) a
-    | listD c -> rowS a, rowS -> c
+    | listD c -> rowS, rowS -> c, listD -> a
   where
     allocateStorageUniformImpl :: RLProxy listD -> Proxy2 c -> Record rowS
 
@@ -186,7 +186,7 @@ allocateStorageUniform _ cprox = CompStorage $ allocateStorageUniformImpl (RLPro
 -- fields, return a Record containing only the values of the specified fields
 -- at a given index. Containers of other unread fields are not traversed at all.
 class ReadStorage (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type)  a
-    | listD -> rowD, rowD -> a, listD rowS -> c
+    | listD -> rowD, listD -> a, listD rowS -> c
   where
     readStorageImpl :: RLProxy listD -> Record rowS -> Int -> Record rowD
 
@@ -219,7 +219,7 @@ readStorage (CompStorage srec) ind = readStorageImpl (RLProxy :: RLProxy listD) 
 -- For applying a recently computed update (modifications or insertions) to an
 -- existing CompStorage
 class MergeStorage   (listS :: RowList) (rowS :: # Type) (c :: Type -> Type) a
-    | listS -> rowS, rowS -> a, listS -> c
+    | listS -> rowS c a
   where
     mergeStorageImpl :: RLProxy listS -> Record rowS -> Record rowS -> Record rowS
 
@@ -257,13 +257,12 @@ mergeStorage (CompStorage recUpd) (CompStorage recInp) = CompStorage $ mergeStor
 -- in the containers in the specified fields. Unwritten containers are not
 -- traversed at all, just copied to output CompStorage/Record
 class WriteStorage (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
-    | listD -> rowD, rowD -> a, listD -> c a
+    | listD -> rowD, listD rowS -> c a
   where
     writeStorageImpl :: RLProxy listD -> Record rowS -> Int -> Record rowD -> Record rowS
 
 instance writeStorageNil :: WriteStorage rowS Nil () c a where
     writeStorageImpl _ srec _ _ = srec
-
 
 instance writeStorageCons ::
   ( IsSymbol name
@@ -346,7 +345,7 @@ minIndices (CompStorage srec) _ = indfun unit
 -- Components
 -- Component containers in fields not specifed by rowD are not touched
 class IntersectIndices (rowS :: # Type) (listD :: RowList) (rowD :: # Type) (c :: Type -> Type) a
-    | listD -> rowD, rowD -> a, listD rowS -> c
+    | listD -> rowD, listD -> a, listD rowS -> c
   where
     intersectIndicesImpl :: RLProxy listD -> Record rowS -> Array Int -> Array Int
 
@@ -476,7 +475,7 @@ dropPred cs@(CompStorage srec) p =  CompStorage $ dropPredImpl (RLProxy :: RLPro
 
 
 class WriteMaybe (rowS :: # Type) (listM :: RowList) (rowM :: # Type) (c :: Type -> Type) a
-    | listM -> rowM, rowM -> a, listM -> c a
+    | listM -> rowM, rowM -> a, listM rowS -> c a
   where
     writeMaybeImpl :: RLProxy listM -> Record rowS -> Int -> Record rowM -> Record rowS
 
